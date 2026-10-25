@@ -1,0 +1,10 @@
+{
+  "name": "WishDrop",
+  "description": "Save. Organize. Share. Gift Smarter. AI-powered wishlist, family gift planning, and collaborative product organization.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

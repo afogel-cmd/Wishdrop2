@@ -1,0 +1,22 @@
+<resources>
+    <string name="wishlist_title">Wishlist</string>
+    <string name="wishlist_search_placeholder">Search products, stores, tags, people…</string>
+    <string name="cd_clear_search">Clear search</string>
+    <string name="wishlist_smart_collections">Smart Collections</string>
+    <string name="wishlist_collection_count">%1$d products</string>
+    <string name="wishlist_items_header">Saved Products (%1$d)</string>
+    <string name="wishlist_swipe_hint">Swipe right for Purchased • Swipe left to Archive</string>
+    <string name="wishlist_empty_title">No matching wishes</string>
+    <string name="wishlist_empty_subtitle">Try clearing a filter or tap + to add a new product.</string>
+    <string name="swipe_purchased_label">Purchased</string>
+    <string name="swipe_archive_label">Archive</string>
+    <string name="fab_add_product">Add Wish</string>
+    <string name="fab_close_menu">Close menu</string>
+    <string name="fab_add_link">Add Link</string>
+    <string name="fab_manual_product">Manual Product</string>
+    <string name="fab_barcode_scan">Barcode Scan</string>
+    <string name="snackbar_undo">Undo</string>
+    <string name="filter_all">All</string>
+    <string name="filter_purchased">Purchased</string>
+    <string name="filter_archived">Archived</string>
+</resources>

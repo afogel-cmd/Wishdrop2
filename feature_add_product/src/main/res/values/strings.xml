@@ -1,0 +1,32 @@
+<resources>
+    <string name="add_title">Add to WishDrop</string>
+    <string name="add_back">Back</string>
+    <string name="mode_url">Paste URL</string>
+    <string name="mode_manual">Manual Entry</string>
+    <string name="mode_barcode">Barcode Scan</string>
+    <string name="url_label">Product Link</string>
+    <string name="url_placeholder">https://store.google.com/product/…</string>
+    <string name="url_quick_samples">Quick sample links to try</string>
+    <string name="action_analyze_ai">Analyze with AI</string>
+    <string name="manual_name_label">Product Name</string>
+    <string name="manual_store_label">Store Name</string>
+    <string name="manual_price_label">Price (Ft)</string>
+    <string name="manual_notes_label">Notes or Gift Hint</string>
+    <string name="barcode_camera_title">Live Barcode Scanner</string>
+    <string name="barcode_grant_camera">Enable Camera Scanner</string>
+    <string name="barcode_manual_label">Or enter EAN / UPC barcode</string>
+    <string name="barcode_presets_label">Instant EAN test codes</string>
+    <string name="review_title">Review AI Extraction</string>
+    <string name="review_subtitle">Edit any field before saving to your wishlist</string>
+    <string name="review_categories">Extracted Categories</string>
+    <string name="review_tags">Extracted Tags</string>
+    <string name="review_add_tag">+ Tag</string>
+    <string name="review_recipient">Detected Recipient</string>
+    <string name="review_alternatives">AI Alternatives Found</string>
+    <string name="review_save_button">Save to WishDrop</string>
+    <string name="review_start_over">Start Over</string>
+    <string name="dialog_add_tag_title">Add Custom Tag</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="add_error_extraction">Unable to analyze product details right now. Please try again.</string>
+</resources>

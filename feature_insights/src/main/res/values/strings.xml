@@ -1,0 +1,15 @@
+<resources>
+    <string name="insights_title">Insights</string>
+    <string name="insights_subtitle">Smart price tracking &amp; yearly gift savings</string>
+    <string name="insights_this_year">This Year</string>
+    <string name="insights_saved_suffix">%1$s Saved</string>
+    <string name="insights_top_purchase">Top Purchase</string>
+    <string name="insights_category_distribution">Category Distribution</string>
+    <string name="insights_category_sub">Tap a segment to inspect category share</string>
+    <string name="insights_donut_a11y">Category distribution chart, currently focused on %1$s at %2$d percent</string>
+    <string name="insights_common_tags">Most Common Tags</string>
+    <string name="insights_biggest_drops">Biggest Price Drops</string>
+    <string name="insights_empty_title">No price insights yet</string>
+    <string name="insights_empty_desc">Save products to WishDrop to unlock category breakdowns, tag analytics, and live price drop tracking.</string>
+    <string name="insights_empty_action">Add First Wish</string>
+</resources>

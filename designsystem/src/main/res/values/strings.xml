@@ -1,0 +1,13 @@
+<resources>
+    <string name="cd_product_image">Product image for %1$s</string>
+    <string name="cd_person_avatar">Avatar for %1$s</string>
+    <string name="cd_price_drop_badge">Price dropped by %1$d percent</string>
+    <string name="label_save_amount">Save %1$s</string>
+    <string name="label_match_percent">%1$d%% Match</string>
+    <string name="label_analyzing_product">Analyzing Product…</string>
+    <string name="state_loading_content">Loading content</string>
+    <string name="state_error_default_title">Something went wrong</string>
+    <string name="state_action_retry">Try again</string>
+    <string name="state_selected">Selected</string>
+    <string name="state_not_selected">Not selected</string>
+</resources>

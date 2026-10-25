@@ -1,0 +1,27 @@
+<resources>
+    <string name="gift_title">Gift Assistant</string>
+    <string name="gift_subtitle">AI-curated ideas &amp; progress for everyone you love</string>
+    <string name="gift_add_person">Add Person</string>
+    <string name="gift_event_days">%1$s • %2$d days</string>
+    <string name="gift_progress_title">Gift Progress</string>
+    <string name="gift_progress_subtitle">Tap any stage to update status</string>
+    <string name="gift_interests_title">Interest Profile</string>
+    <string name="gift_interests_subtitle">AI-detected &amp; customizable affinities</string>
+    <string name="gift_add_interest">+ Add Interest</string>
+    <string name="gift_saved_ideas_title">Saved Ideas</string>
+    <string name="gift_saved_ideas_empty">No saved ideas for %1$s yet — save an AI recommendation below!</string>
+    <string name="gift_ai_recommendations_title">AI Recommendations</string>
+    <string name="gift_ai_recommendations_sub">Matched to %1$s\'s interests &amp; budget</string>
+    <string name="gift_save_to_wishlist">Save to Wishlist</string>
+    <string name="gift_view_in_wishlist">View Idea</string>
+    <string name="dialog_add_interest_title">Add Interest Tag</string>
+    <string name="dialog_interest_hint">e.g. Ceramics, Vinyl, Yoga</string>
+    <string name="dialog_add_person_title">Add Family or Friend</string>
+    <string name="dialog_person_name">Name</string>
+    <string name="dialog_person_relation">Relationship (e.g. Sister, Friend)</string>
+    <string name="dialog_person_event">Upcoming Event (e.g. Birthday)</string>
+    <string name="dialog_person_days">Days Until Event</string>
+    <string name="dialog_person_interests">Interests (comma separated)</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+</resources>

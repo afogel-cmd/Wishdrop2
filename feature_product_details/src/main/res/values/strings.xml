@@ -1,0 +1,37 @@
+<resources>
+    <string name="details_back">Navigate back</string>
+    <string name="details_share">Share product</string>
+    <string name="details_price_alert">Toggle price alert</string>
+    <string name="details_alert_on_state">Price alert enabled</string>
+    <string name="details_alert_off_state">Price alert disabled</string>
+    <string name="details_current_price">Current Price</string>
+    <string name="details_price_history">Price History</string>
+    <string name="details_price_low">Lowest: %1$s</string>
+    <string name="details_price_high">Highest: %1$s</string>
+    <string name="details_chart_a11y">Price history for %1$s, lowest %2$s, highest %3$s</string>
+    <string name="details_ai_categories">AI Categories</string>
+    <string name="details_ai_tags">AI Tags</string>
+    <string name="details_recipient_detection">Recipient Detection</string>
+    <string name="details_confidence">%1$d%% Confidence</string>
+    <string name="details_change_recipient">Change</string>
+    <string name="details_shared_list_label">Shared List</string>
+    <string name="details_shared_list_none">Personal Wishlist (Not shared)</string>
+    <string name="details_assign_list_title">Assign to Shared List</string>
+    <string name="details_store_comparison">Store Comparison</string>
+    <string name="details_best_price">Best Price</string>
+    <string name="details_alternative_products">Alternative Products</string>
+    <string name="details_comments_title">Family Comments</string>
+    <string name="details_comments_sub">Coordinate gift ideas without spoiling surprises</string>
+    <string name="details_comment_placeholder">Write a note for collaborators…</string>
+    <string name="details_comment_send">Post comment</string>
+    <string name="details_comments_empty">No comments yet — start the conversation.</string>
+    <string name="details_activity_title">Activity Timeline</string>
+    <string name="details_activity_sub">Live history synced across family devices</string>
+    <string name="details_mark_purchased">Mark as Purchased</string>
+    <string name="details_purchased_done">Purchased ✓</string>
+    <string name="details_assign_recipient_title">Assign Gift Recipient</string>
+    <string name="details_close">Close</string>
+    <string name="details_empty_title">Wish no longer available</string>
+    <string name="details_empty_desc">This product may have been removed or moved to another collection.</string>
+    <string name="details_empty_action">Back to Wishlist</string>
+</resources>

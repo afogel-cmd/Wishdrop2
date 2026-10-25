@@ -1,0 +1,31 @@
+<resources>
+    <string name="shared_list_back">Navigate back</string>
+    <string name="shared_list_invite">Invite</string>
+    <string name="shared_list_add_idea">Add Wish</string>
+    <string name="shared_list_realtime_live">Realtime Sync</string>
+    <string name="shared_list_items_badge">%1$d items</string>
+    <string name="shared_list_secret_shield_title">Secret Gift Shield Active</string>
+    <string name="shared_list_secret_shield_desc">Hidden from %1$s — products, comments, and activity never appear on %1$s\'s account.</string>
+    <string name="shared_list_visibility_section">Visibility &amp; Privacy</string>
+    <string name="shared_list_members_title">Collaborators</string>
+    <string name="shared_list_members_sub">Tap a member to adjust permissions</string>
+    <string name="shared_list_pending_invites">Pending Invitations</string>
+    <string name="shared_list_accept_join">Accept &amp; Join List</string>
+    <string name="shared_list_products_title">Shared Products</string>
+    <string name="shared_list_products_empty_title">No products in this list yet</string>
+    <string name="shared_list_products_empty_desc">Add a gift idea to coordinate in real time with your family.</string>
+    <string name="shared_list_activity_title">Activity Feed</string>
+    <string name="shared_list_activity_sub">Live collaborative timeline</string>
+    <string name="shared_list_hidden_empty_title">Shared list unavailable</string>
+    <string name="shared_list_hidden_empty_desc">This list is private or hidden by Secret Gift protection for the active account.</string>
+    <string name="dialog_invite_title">Invite Collaborator</string>
+    <string name="dialog_invite_email">Collaborator Email</string>
+    <string name="dialog_invite_send">Send Invitation</string>
+    <string name="dialog_quick_add_title">Add Wish to Shared List</string>
+    <string name="dialog_quick_add_name">Product Name</string>
+    <string name="dialog_quick_add_store">Store</string>
+    <string name="dialog_quick_add_price">Price (HUF)</string>
+    <string name="dialog_role_title">Update Member Role</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+</resources>

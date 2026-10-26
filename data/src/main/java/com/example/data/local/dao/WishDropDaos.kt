@@ -384,6 +384,9 @@ interface RecommendationDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertRecommendation(item: RecommendationEntity)
 
+  @Query("SELECT * FROM recommendations WHERE id = :id LIMIT 1")
+  suspend fun getRecommendationById(id: String): RecommendationEntity?
+
   @Query("DELETE FROM recommendations WHERE id = :id")
   suspend fun deleteRecommendation(id: String)
 

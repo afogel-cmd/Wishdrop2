@@ -772,6 +772,11 @@ constructor(
   }
 
   override suspend fun dismissRecommendation(recommendationId: String) {
+    val existing = recommendationDao.getRecommendationById(recommendationId)
+    if (existing != null) {
+      preferencesRepository.addDismissedRecommendation(existing.title)
+      preferencesRepository.addDismissedRecommendation(existing.title.lowercase())
+    }
     recommendationDao.deleteRecommendation(recommendationId)
     preferencesRepository.addDismissedRecommendation(recommendationId)
   }
@@ -780,7 +785,10 @@ constructor(
     val recipientEntity = recipientDao.getRecipientById(recipientId) ?: return
     val recipient = recipientEntity.toDomain()
     val interests = recipient.interests
-    val budget = recipient.budgetHuf.let { if (it <= 0) 25_000 else it }
+    val budget = recipient.budgetHuf.let { if (it <= 0) 35_000 else it }
+
+    val prefs = preferencesRepository.preferencesFlow.first()
+    val dismissed = prefs.dismissedRecommendationIds
 
     val generatedCatalog = listOf(
       Triple("Fellow Stagg EKG Kávékiöntő", 42_990, listOf("Coffee", "Kitchen")),
@@ -793,12 +801,24 @@ constructor(
       Triple("Kindle Paperwhite 16GB E-könyv Olvasó", 59_990, listOf("Books", "Tech")),
       Triple("Handcrafted Bőr Jegyzettömb & Bőrtok", 12_990, listOf("Gift", "Office")),
       Triple("Smart Ambient Intelligens Asztali Lámpa", 28_990, listOf("Home", "Tech")),
+      Triple("Bosch Hőszivattyús Prémium Szárítógép", 196_990, listOf("Home", "Appliances")),
+      Triple("Miele Eco Hőszivattyús Ruhaszárító", 249_990, listOf("Home", "Appliances")),
+      Triple("Slim Fit Chino Elegáns Pamut Nadrág", 19_990, listOf("Fashion", "Clothing")),
+      Triple("Klasszikus Valódi Bőr Női / Férfi Öv", 12_990, listOf("Fashion", "Accessories")),
+      Triple("Aromaterápiás Ultrahangos Párásító", 16_990, listOf("Home", "Wellness")),
+      Triple("Sony WH-1000XM5 Zajszűrős Fejhallgató", 119_900, listOf("Audio", "Tech")),
     )
 
-    val matching = generatedCatalog.filter { item ->
+    val availableCatalog = generatedCatalog.filter { item ->
+      !dismissed.contains(item.first) &&
+        !dismissed.contains(item.first.lowercase()) &&
+        !dismissed.contains(item.first.trim())
+    }
+
+    val matching = availableCatalog.filter { item ->
       val tags = item.third
       tags.any { tag -> interests.any { interest -> interest.contains(tag, ignoreCase = true) || tag.contains(interest, ignoreCase = true) } }
-    }.ifEmpty { generatedCatalog.shuffled().take(3) }
+    }.ifEmpty { availableCatalog.shuffled().take(3) }
 
     val selected = matching.shuffled().take(3)
     selected.forEach { item ->
@@ -811,8 +831,8 @@ constructor(
           store = "WishDrop AI Verified",
           priceHuf = item.second.coerceAtMost(budget),
           imageKey = if (item.first.contains("LEGO")) "lego_bonsai" else if (item.first.contains("Pixel")) "pixel_buds" else "art_book",
-          matchPercentage = (86..98).random(),
-          reason = "${recipient.name} érdeklődési körei (${interests.joinToString(", ").ifBlank { "Személyes ajándék" }}) alapján AI által ajánlva.",
+          matchPercentage = (88..99).random(),
+          reason = "${recipient.name} profilja (${interests.joinToString(", ").ifBlank { "Személyes preferenciák" }}) alapján AI mélyelemzéssel ajánlva.",
           categoriesJson = repositoryJson.encodeToString(item.third),
           tagsJson = repositoryJson.encodeToString(interests + item.third),
           linkedProductId = null,

@@ -27,6 +27,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -225,6 +226,7 @@ private fun GiftAssistantSuccessContent(
   var showAddInterestDialog by rememberSaveable { mutableStateOf(false) }
   var showEditPersonDialog by rememberSaveable { mutableStateOf(false) }
   var showDeletePersonDialog by rememberSaveable { mutableStateOf(false) }
+  var showDeepAnalysisDialog by rememberSaveable { mutableStateOf(false) }
   val spacing = WishDropDesign.spacing
 
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -396,12 +398,43 @@ private fun GiftAssistantSuccessContent(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-              ExpressiveSectionHeader(
-                title = stringResource(R.string.gift_ai_recommendations_title),
-                subtitle = stringResource(R.string.gift_ai_recommendations_sub, recipient.name),
-                actionLabel = "Új generálása",
-                onActionClick = onGenerateAiRecommendations,
-              )
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(
+                    text = stringResource(R.string.gift_ai_recommendations_title),
+                    style = MaterialTheme.typography.titleLarge,
+                  )
+                  Text(
+                    text = stringResource(R.string.gift_ai_recommendations_sub, recipient.name),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                  OutlinedButton(
+                    onClick = { showDeepAnalysisDialog = true },
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                  ) {
+                    Icon(
+                      imageVector = WishDropIcons.Sparkle,
+                      contentDescription = null,
+                      modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Mélyebb Analízis")
+                  }
+                  FilledTonalButton(
+                    onClick = onGenerateAiRecommendations,
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                  ) {
+                    Text("Újra-generálás")
+                  }
+                }
+              }
               if (state.aiRecommendations.isEmpty()) {
                 WishDropEmptyState(
                   icon = WishDropIcons.GiftFilled,
@@ -433,6 +466,27 @@ private fun GiftAssistantSuccessContent(
       onConfirm = { name, relation, event, days, interests ->
         onUpdatePerson(state.selectedRecipient.id, name, relation, event, days, interests)
         showEditPersonDialog = false
+      },
+    )
+  }
+
+  if (showDeepAnalysisDialog) {
+    DeepProfileAnalysisDialog(
+      recipientName = state.selectedRecipient.name,
+      currentInterests = state.selectedRecipient.interests,
+      currentBudgetHuf = state.selectedRecipient.budgetHuf,
+      onDismiss = { showDeepAnalysisDialog = false },
+      onConfirm = { interestsCsv, budgetHuf, notes ->
+        onUpdatePerson(
+          state.selectedRecipient.id,
+          state.selectedRecipient.name,
+          state.selectedRecipient.relationship,
+          state.selectedRecipient.upcomingEventName,
+          state.selectedRecipient.daysUntilEvent,
+          interestsCsv,
+        )
+        onGenerateAiRecommendations()
+        showDeepAnalysisDialog = false
       },
     )
   }

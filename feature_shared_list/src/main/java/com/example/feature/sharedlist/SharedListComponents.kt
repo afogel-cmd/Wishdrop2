@@ -22,6 +22,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -377,6 +378,32 @@ internal fun InviteCollaboratorDialog(
                 label = { Text(role.label) },
               )
             }
+        }
+
+        val context = androidx.compose.ui.platform.LocalContext.current
+        OutlinedButton(
+          onClick = {
+            val inviteMessage = """
+              Szia! Meghívtalak a WishDrop közös kívánságlistámra!
+              
+              1. Töltsd le az appot a GitHubról:
+              👉 https://github.com/aistudio/wishdrop/releases
+              
+              2. Csatlakozz az appban a listához!
+            """.trimIndent()
+
+            val shareIntent = android.content.Intent().apply {
+              action = android.content.Intent.ACTION_SEND
+              putExtra(android.content.Intent.EXTRA_TEXT, inviteMessage)
+              type = "text/plain"
+            }
+            context.startActivity(android.content.Intent.createChooser(shareIntent, "Meghívó link megosztása WishDrop-hoz"))
+          },
+          modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize(),
+        ) {
+          Icon(imageVector = WishDropIcons.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(modifier = Modifier.width(6.dp))
+          Text("Meghívó Link Megosztása (GitHub)")
         }
       }
     },

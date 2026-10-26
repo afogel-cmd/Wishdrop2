@@ -2,6 +2,7 @@ package com.example.feature.profile
 
 import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,7 +63,6 @@ import com.example.designsystem.components.WishDropListShimmer
 import com.example.designsystem.icon.WishDropIcons
 import com.example.designsystem.theme.WishDropDesign
 import com.example.designsystem.theme.WishDropTheme
-import com.example.domain.model.FamilyPersona
 import com.example.domain.model.GiftRecipient
 import com.example.domain.model.GiftStage
 import kotlin.math.roundToInt
@@ -123,8 +123,11 @@ fun ProfileRouteScreen(
       state = uiState,
       onRetry = viewModel::retry,
       onOpenFamilyMember = onOpenFamilyMember,
-      onSwitchPersona = viewModel::switchPersona,
+      onAddFamilyMember = viewModel::addFamilyMember,
+      onUpdateFamilyMember = viewModel::updateFamilyMember,
+      onDeleteFamilyMember = viewModel::deleteFamilyMember,
       onSignInCloud = viewModel::signInCloud,
+      onSignInGoogle = viewModel::signInWithGoogle,
       onSignUpCloud = viewModel::signUpCloud,
       onSignOutCloud = viewModel::signOutCloud,
       onAcceptInvitation = { inviteId ->
@@ -163,12 +166,15 @@ fun ProfileScreenContent(
   onAiAutoCatChanged: (Boolean) -> Unit,
   onAiRecipientChanged: (Boolean) -> Unit,
   onAiConfidenceChanged: (Float) -> Unit,
-  onUpdateProfile: (String, String) -> Unit,
+  onUpdateProfile: (String, String, String?) -> Unit,
   onExportClick: () -> Unit,
   onImportClick: () -> Unit,
   onResetCatalog: () -> Unit,
-  onSwitchPersona: (String) -> Unit = {},
+  onAddFamilyMember: (name: String, relationship: String, eventName: String, days: Int, budget: Int, interests: List<String>, avatarUrl: String?) -> Unit = { _, _, _, _, _, _, _ -> },
+  onUpdateFamilyMember: (id: String, name: String, relationship: String, eventName: String, days: Int, interests: List<String>, avatarUrl: String?) -> Unit = { _, _, _, _, _, _, _ -> },
+  onDeleteFamilyMember: (String) -> Unit = {},
   onSignInCloud: (String, String) -> Unit = { _, _ -> },
+  onSignInGoogle: (displayName: String, email: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
   onSignUpCloud: (String, String, String) -> Unit = { _, _, _ -> },
   onSignOutCloud: () -> Unit = {},
   onAcceptInvitation: (String) -> Unit = {},
@@ -196,6 +202,8 @@ fun ProfileScreenContent(
 
     is ProfileUiState.Success -> {
       var showEditDialog by rememberSaveable { mutableStateOf(false) }
+      var showAddMemberDialog by rememberSaveable { mutableStateOf(false) }
+      var editingMember by remember { mutableStateOf<GiftRecipient?>(null) }
       val prefs = state.preferences
 
       Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -230,7 +238,12 @@ fun ProfileScreenContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
               ) {
-                PersonAvatarBadge(name = prefs.displayName, accentKey = "indigo", size = 60.dp)
+                PersonAvatarBadge(
+                  name = prefs.displayName,
+                  accentKey = "indigo",
+                  imageUrl = prefs.avatarUrl,
+                  size = 60.dp,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                   Text(text = prefs.displayName, style = MaterialTheme.typography.titleLarge)
                   Text(
@@ -250,16 +263,6 @@ fun ProfileScreenContent(
             }
           }
 
-          if (state.personas.isNotEmpty()) {
-            item(key = "persona_switcher", contentType = "persona_switcher") {
-              ActivePersonaSwitcherCard(
-                activeMemberId = prefs.activeMemberId,
-                personas = state.personas,
-                onSwitchPersona = onSwitchPersona,
-              )
-            }
-          }
-
           if (state.pendingInvitations.isNotEmpty()) {
             item(key = "pending_invitations", contentType = "invitations") {
               PendingInvitationsSection(
@@ -274,6 +277,7 @@ fun ProfileScreenContent(
               preferences = prefs,
               realtimeStatus = state.realtimeStatus,
               onSignIn = onSignInCloud,
+              onSignInGoogle = onSignInGoogle,
               onSignUp = onSignUpCloud,
               onSignOut = onSignOutCloud,
             )
@@ -281,10 +285,27 @@ fun ProfileScreenContent(
 
           item(key = "family_members", contentType = "family_members") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-              ExpressiveSectionHeader(
-                title = stringResource(R.string.profile_family_members),
-                subtitle = stringResource(R.string.profile_family_sub),
-              )
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                ExpressiveSectionHeader(
+                  title = stringResource(R.string.profile_family_members),
+                  subtitle = stringResource(R.string.profile_family_sub),
+                  modifier = Modifier.weight(1f, fill = false),
+                )
+                FilledTonalButton(
+                  onClick = { showAddMemberDialog = true },
+                  modifier =
+                    Modifier.minimumInteractiveComponentSize()
+                      .testTag("profile_add_family_member_button"),
+                ) {
+                  Icon(imageVector = WishDropIcons.Add, contentDescription = null)
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text("Új családtag")
+                }
+              }
               if (state.familyMembers.isEmpty()) {
                 WishDropEmptyState(
                   icon = WishDropIcons.GiftFilled,
@@ -301,6 +322,8 @@ fun ProfileScreenContent(
                     FamilyMemberChipCard(
                       member = member,
                       onClick = { onOpenFamilyMember(member.id) },
+                      onEdit = { editingMember = member },
+                      onDelete = { onDeleteFamilyMember(member.id) },
                     )
                   }
                 }
@@ -504,11 +527,41 @@ fun ProfileScreenContent(
       if (showEditDialog) {
         var editName by rememberSaveable { mutableStateOf(prefs.displayName) }
         var editEmail by rememberSaveable { mutableStateOf(prefs.email) }
+        var editAvatarUrl by rememberSaveable { mutableStateOf(prefs.avatarUrl) }
+
+        val profilePhotoPicker = rememberLauncherForActivityResult(
+          ActivityResultContracts.PickVisualMedia()
+        ) { uri ->
+          if (uri != null) {
+            editAvatarUrl = uri.toString()
+          }
+        }
+
         AlertDialog(
           onDismissRequest = { showEditDialog = false },
           title = { Text(stringResource(R.string.dialog_edit_profile)) },
           text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+              ) {
+                PersonAvatarBadge(
+                  name = editName.ifBlank { "Profil" },
+                  accentKey = "indigo",
+                  imageUrl = editAvatarUrl,
+                  size = 52.dp,
+                )
+                OutlinedButton(
+                  onClick = {
+                    profilePhotoPicker.launch(
+                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                  },
+                ) {
+                  Text("Profilfotó választása")
+                }
+              }
               OutlinedTextField(
                 value = editName,
                 onValueChange = { editName = it },
@@ -528,7 +581,7 @@ fun ProfileScreenContent(
           confirmButton = {
             TextButton(
               onClick = {
-                onUpdateProfile(editName, editEmail)
+                onUpdateProfile(editName, editEmail, editAvatarUrl)
                 showEditDialog = false
               },
               modifier = Modifier.minimumInteractiveComponentSize(),
@@ -546,6 +599,237 @@ fun ProfileScreenContent(
           },
         )
       }
+
+      if (showAddMemberDialog) {
+        var name by rememberSaveable { mutableStateOf("") }
+        var relationship by rememberSaveable { mutableStateOf("Partner") }
+        var eventName by rememberSaveable { mutableStateOf("Születésnap") }
+        var daysText by rememberSaveable { mutableStateOf("30") }
+        var budgetText by rememberSaveable { mutableStateOf("25000") }
+        var interestsText by rememberSaveable { mutableStateOf("") }
+        var avatarUrl by rememberSaveable { mutableStateOf<String?>(null) }
+
+        val memberPhotoPicker = rememberLauncherForActivityResult(
+          ActivityResultContracts.PickVisualMedia()
+        ) { uri ->
+          if (uri != null) {
+            avatarUrl = uri.toString()
+          }
+        }
+
+        AlertDialog(
+          onDismissRequest = { showAddMemberDialog = false },
+          title = { Text("Új családtag felvitele") },
+          text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+              ) {
+                PersonAvatarBadge(
+                  name = name.ifBlank { "Új" },
+                  accentKey = "coral",
+                  imageUrl = avatarUrl,
+                  size = 48.dp,
+                )
+                OutlinedButton(
+                  onClick = {
+                    memberPhotoPicker.launch(
+                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                  },
+                ) {
+                  Text("Fotó feltöltése")
+                }
+              }
+              OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Név") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = relationship,
+                onValueChange = { relationship = it },
+                label = { Text("Kapcsolat (pl. Partner, Gyerek, Szülő)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = eventName,
+                onValueChange = { eventName = it },
+                label = { Text("Következő esemény neve") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = daysText,
+                onValueChange = { daysText = it },
+                label = { Text("Napok az eseményig") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = budgetText,
+                onValueChange = { budgetText = it },
+                label = { Text("Ajándék keret (Ft)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = interestsText,
+                onValueChange = { interestsText = it },
+                label = { Text("Érdeklődési körök (vesszővel elválasztva)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+            }
+          },
+          confirmButton = {
+            TextButton(
+              onClick = {
+                if (name.isNotBlank()) {
+                  val interests = interestsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                  onAddFamilyMember(
+                    name.trim(),
+                    relationship.trim().ifBlank { "Családtag" },
+                    eventName.trim().ifBlank { "Születésnap" },
+                    daysText.toIntOrNull() ?: 30,
+                    budgetText.toIntOrNull() ?: 20000,
+                    interests,
+                    avatarUrl,
+                  )
+                  showAddMemberDialog = false
+                }
+              },
+              modifier = Modifier.minimumInteractiveComponentSize(),
+            ) {
+              Text("Hozzáadás")
+            }
+          },
+          dismissButton = {
+            TextButton(
+              onClick = { showAddMemberDialog = false },
+              modifier = Modifier.minimumInteractiveComponentSize(),
+            ) {
+              Text(stringResource(R.string.action_cancel))
+            }
+          },
+        )
+      }
+
+      val currentEditingMember = editingMember
+      if (currentEditingMember != null) {
+        var name by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.name) }
+        var relationship by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.relationship) }
+        var eventName by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.upcomingEventName) }
+        var daysText by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.daysUntilEvent.toString()) }
+        var interestsText by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.interests.joinToString(", ")) }
+        var avatarUrl by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.avatarUrl) }
+
+        val editMemberPhotoPicker = rememberLauncherForActivityResult(
+          ActivityResultContracts.PickVisualMedia()
+        ) { uri ->
+          if (uri != null) {
+            avatarUrl = uri.toString()
+          }
+        }
+
+        AlertDialog(
+          onDismissRequest = { editingMember = null },
+          title = { Text("Családtag szerkesztése") },
+          text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+              ) {
+                PersonAvatarBadge(
+                  name = name.ifBlank { "Családtag" },
+                  accentKey = currentEditingMember.accentKey,
+                  imageUrl = avatarUrl,
+                  size = 48.dp,
+                )
+                OutlinedButton(
+                  onClick = {
+                    editMemberPhotoPicker.launch(
+                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                  },
+                ) {
+                  Text("Fotó módosítása")
+                }
+              }
+              OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Név") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = relationship,
+                onValueChange = { relationship = it },
+                label = { Text("Kapcsolat") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = eventName,
+                onValueChange = { eventName = it },
+                label = { Text("Következő esemény") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = daysText,
+                onValueChange = { daysText = it },
+                label = { Text("Napok az eseményig") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+              OutlinedTextField(
+                value = interestsText,
+                onValueChange = { interestsText = it },
+                label = { Text("Érdeklődési körök") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+              )
+            }
+          },
+          confirmButton = {
+            TextButton(
+              onClick = {
+                if (name.isNotBlank()) {
+                  val interests = interestsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                  onUpdateFamilyMember(
+                    currentEditingMember.id,
+                    name.trim(),
+                    relationship.trim(),
+                    eventName.trim(),
+                    daysText.toIntOrNull() ?: 30,
+                    interests,
+                    avatarUrl,
+                  )
+                  editingMember = null
+                }
+              },
+              modifier = Modifier.minimumInteractiveComponentSize(),
+            ) {
+              Text("Mentés")
+            }
+          },
+          dismissButton = {
+            TextButton(
+              onClick = { editingMember = null },
+              modifier = Modifier.minimumInteractiveComponentSize(),
+            ) {
+              Text(stringResource(R.string.action_cancel))
+            }
+          },
+        )
+      }
     }
   }
 }
@@ -553,11 +837,7 @@ fun ProfileScreenContent(
 private val PreviewProfileState =
   ProfileUiState.Success(
     preferences = UserPreferences(),
-    personas =
-      listOf(
-        FamilyPersona("rec_attila", "Attila", "attila.kovacs@pixelmail.hu", "Owner", "indigo"),
-        FamilyPersona("rec_dalma", "Dalma", "dalma@pixelmail.hu", "Partner", "coral"),
-      ),
+    personas = emptyList(),
     familyMembers =
       listOf(
         GiftRecipient(
@@ -590,7 +870,7 @@ private fun ProfileLightPreview() {
       onAiAutoCatChanged = {},
       onAiRecipientChanged = {},
       onAiConfidenceChanged = {},
-      onUpdateProfile = { _, _ -> },
+      onUpdateProfile = { _, _, _ -> },
       onExportClick = {},
       onImportClick = {},
       onResetCatalog = {},
@@ -617,7 +897,7 @@ private fun ProfileDarkPreview() {
       onAiAutoCatChanged = {},
       onAiRecipientChanged = {},
       onAiConfidenceChanged = {},
-      onUpdateProfile = { _, _ -> },
+      onUpdateProfile = { _, _, _ -> },
       onExportClick = {},
       onImportClick = {},
       onResetCatalog = {},

@@ -86,8 +86,8 @@ constructor(
         isRealtimeSocketActive = !config.isConfigured,
         lastSyncedMillis = System.currentTimeMillis(),
         statusLabel =
-          if (config.isConfigured) "Connecting to Supabase Realtime..."
-          else "Offline-First Room + Instant Local Realtime Ready",
+          if (config.isConfigured) "Connecting to Cloud..."
+          else "Offline-First Active",
       )
     )
   val syncStatus: StateFlow<RealtimeSyncStatus> = _syncStatus.asStateFlow()
@@ -105,8 +105,8 @@ constructor(
       _syncStatus.value.copy(
         lastSyncedMillis = now,
         statusLabel =
-          if (config.isConfigured) "Synced with Supabase Realtime"
-          else "Realtime Family Sync Active • Offline-First",
+          if (config.isConfigured) "Synced with Cloud"
+          else "Offline-First Active",
       )
 
     if (config.isConfigured && recordPayload != null) {

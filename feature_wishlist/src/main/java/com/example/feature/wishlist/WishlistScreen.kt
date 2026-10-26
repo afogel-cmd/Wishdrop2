@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -42,6 +45,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import com.example.domain.model.SharedListSummary
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -136,6 +142,7 @@ fun WishlistRouteScreen(
     onSwipePurchased = viewModel::markPurchasedBySwipe,
     onSwipeArchive = viewModel::markArchivedBySwipe,
     onOpenAddProduct = onOpenAddProduct,
+    onAssignSharedList = viewModel::assignProductToSharedList,
   )
 }
 
@@ -153,6 +160,7 @@ fun WishlistScreen(
   onSwipePurchased: (Product) -> Unit,
   onSwipeArchive: (Product) -> Unit,
   onOpenAddProduct: (String) -> Unit,
+  onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
 ) {
   var fabExpanded by rememberSaveable { mutableStateOf(false) }
@@ -201,6 +209,7 @@ fun WishlistScreen(
           onOpenProductDetails = onOpenProductDetails,
           onSwipePurchased = onSwipePurchased,
           onSwipeArchive = onSwipeArchive,
+          onAssignSharedList = onAssignSharedList,
           modifier = Modifier.padding(innerPadding),
         )
       }
@@ -219,6 +228,7 @@ private fun WishlistLoadedContent(
   onOpenProductDetails: (String) -> Unit,
   onSwipePurchased: (Product) -> Unit,
   onSwipeArchive: (Product) -> Unit,
+  onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
 ) {
   val focusRequester = remember { FocusRequester() }
@@ -349,9 +359,11 @@ private fun WishlistLoadedContent(
           ) { product ->
             SwipeableWishlistProductItem(
               product = product,
+              sharedLists = state.sharedLists,
               onClick = { onOpenProductDetails(product.id) },
               onSwipePurchased = { onSwipePurchased(product) },
               onSwipeArchive = { onSwipeArchive(product) },
+              onAssignSharedList = onAssignSharedList,
             )
           }
         }
@@ -425,12 +437,18 @@ private fun SmartCollectionCard(
 @Composable
 private fun SwipeableWishlistProductItem(
   product: Product,
+  sharedLists: List<SharedListSummary>,
   onClick: () -> Unit,
   onSwipePurchased: () -> Unit,
   onSwipeArchive: () -> Unit,
+  onAssignSharedList: (productId: String, sharedListId: String?) -> Unit,
 ) {
+  var showSharedListDialog by rememberSaveable { mutableStateOf(false) }
   val purchasedLabel = stringResource(R.string.swipe_purchased_label)
   val archiveLabel = stringResource(R.string.swipe_archive_label)
+  val assignedList = remember(product.sharedListId, sharedLists) {
+    sharedLists.firstOrNull { it.id == product.sharedListId }
+  }
 
   val dismissState =
     rememberSwipeToDismissBoxState(
@@ -499,7 +517,6 @@ private fun SwipeableWishlistProductItem(
       modifier =
         Modifier.fillMaxWidth()
           .semantics {
-            // Expose custom TalkBack actions for swipe-equivalent accessibility!
             customActions =
               listOf(
                 CustomAccessibilityAction(purchasedLabel) {
@@ -563,27 +580,137 @@ private fun SwipeableWishlistProductItem(
             )
             PriceDropBadge(percentChange = product.priceChangePercent)
           }
-          FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
           ) {
-            product.tags.take(3).forEach { tag ->
-              Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-              ) {
-                Text(
-                  text = tag,
-                  style = MaterialTheme.typography.labelSmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                )
+            FlowRow(
+              modifier = Modifier.weight(1f),
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              if (assignedList != null) {
+                Surface(
+                  shape = CircleShape,
+                  color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                  Text(
+                    text = "${assignedList.emoji} ${assignedList.title}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                  )
+                }
               }
+              product.tags.take(2).forEach { tag ->
+                Surface(
+                  shape = CircleShape,
+                  color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ) {
+                  Text(
+                    text = tag,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                  )
+                }
+              }
+            }
+
+            IconButton(
+              onClick = { showSharedListDialog = true },
+              modifier = Modifier.size(32.dp).testTag("wishlist_assign_shared_list_${product.id}"),
+            ) {
+              Icon(
+                imageVector = WishDropIcons.Add,
+                contentDescription = "Hozzáadás megosztott listához",
+                tint = if (product.sharedListId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+              )
             }
           }
         }
       }
     }
+  }
+
+  if (showSharedListDialog) {
+    AlertDialog(
+      onDismissRequest = { showSharedListDialog = false },
+      title = { Text("Hozzáadás megosztott listához") },
+      text = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          if (sharedLists.isEmpty()) {
+            Text(
+              text = "Még nincsenek megosztott listáid. Hozz létre egyet a Közös Listák lapon!",
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          } else {
+            sharedLists.forEach { sharedList ->
+              val isSelected = product.sharedListId == sharedList.id
+              Surface(
+                shape = WishDropDesign.radii.small,
+                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .minimumInteractiveComponentSize()
+                  .clickable {
+                    onAssignSharedList(product.id, sharedList.id)
+                    showSharedListDialog = false
+                  },
+              ) {
+                Row(
+                  modifier = Modifier.padding(12.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                  Text(text = sharedList.emoji, style = MaterialTheme.typography.titleMedium)
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(text = sharedList.title, style = MaterialTheme.typography.titleSmall)
+                    if (sharedList.subtitle.isNotBlank()) {
+                      Text(text = sharedList.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                  }
+                  if (isSelected) {
+                    Icon(
+                      imageVector = WishDropIcons.Check,
+                      contentDescription = null,
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(18.dp),
+                    )
+                  }
+                }
+              }
+            }
+
+            if (product.sharedListId != null) {
+              TextButton(
+                onClick = {
+                  onAssignSharedList(product.id, null)
+                  showSharedListDialog = false
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.Delete,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Eltávolítás a megosztott listából", color = MaterialTheme.colorScheme.error)
+              }
+            }
+          }
+        }
+      },
+      confirmButton = {
+        TextButton(onClick = { showSharedListDialog = false }) {
+          Text("Bezárás")
+        }
+      },
+    )
   }
 }
 

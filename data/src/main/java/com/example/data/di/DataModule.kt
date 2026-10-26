@@ -2,6 +2,8 @@ package com.example.data.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.ai.GeminiReadyProductExtractor
 import com.example.data.ai.OnDeviceAiAlternativeRecommender
 import com.example.data.ai.OnDeviceAiCategoryGenerator
@@ -50,6 +52,24 @@ import io.ktor.serialization.kotlinx.json.json
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+  override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE gift_recipients ADD COLUMN avatarUrl TEXT DEFAULT NULL")
+  }
+}
+
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+  override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE products ADD COLUMN additionalImagesJson TEXT NOT NULL DEFAULT '[]'")
+  }
+}
+
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+  override fun migrate(db: SupportSQLiteDatabase) {
+    // Schema v4 -> v5 migration
+  }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -58,6 +78,7 @@ object DatabaseModule {
   @Singleton
   fun provideWishDropDatabase(@ApplicationContext context: Context): WishDropDatabase =
     Room.databaseBuilder(context, WishDropDatabase::class.java, "wishdrop.db")
+      .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
       .fallbackToDestructiveMigration(dropAllTables = true)
       .build()
 

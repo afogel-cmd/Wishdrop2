@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.core.result.DataResult
 import com.example.core.result.asDataResult
 import com.example.domain.model.Product
+import com.example.domain.model.SharedListSummary
 import com.example.domain.model.SmartCollection
+import com.example.domain.usecase.ManageSharedListUseCase
 import com.example.domain.usecase.ManageWishlistItemUseCase
 import com.example.domain.usecase.ObserveWishlistCatalogUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +46,7 @@ sealed interface WishlistUiState {
     val activeCollectionQuery: String? = null,
     val filterChips: List<String> = DEFAULT_FILTERS,
     val smartCollections: List<SmartCollection> = emptyList(),
+    val sharedLists: List<SharedListSummary> = emptyList(),
     val filteredProducts: List<Product> = emptyList(),
     val swipeEvent: PendingSwipeEvent? = null,
   ) : WishlistUiState
@@ -67,6 +70,13 @@ sealed interface WishlistUiState {
   }
 }
 
+private data class WishlistFilterBundle(
+  val query: String,
+  val chip: String,
+  val collectionFilter: String?,
+  val swipe: PendingSwipeEvent?,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class WishlistViewModel
@@ -74,6 +84,7 @@ class WishlistViewModel
 constructor(
   observeWishlistCatalog: ObserveWishlistCatalogUseCase,
   private val manageWishlistItem: ManageWishlistItemUseCase,
+  private val manageSharedList: ManageSharedListUseCase,
 ) : ViewModel() {
 
   private val searchQueryFlow = MutableStateFlow("")
@@ -82,16 +93,19 @@ constructor(
   private val swipeEventFlow = MutableStateFlow<PendingSwipeEvent?>(null)
   private val retryFlow = MutableStateFlow(0)
 
+  private val filterBundleFlow =
+    combine(searchQueryFlow, selectedFilterFlow, collectionQueryFlow, swipeEventFlow) { query, chip, collection, swipe ->
+      WishlistFilterBundle(query, chip, collection, swipe)
+    }
+
   val uiState: StateFlow<WishlistUiState> =
     retryFlow
       .flatMapLatest {
         combine(
           observeWishlistCatalog().asDataResult(),
-          searchQueryFlow,
-          selectedFilterFlow,
-          collectionQueryFlow,
-          swipeEventFlow,
-        ) { catalogResult, query, chip, collectionFilter, swipe ->
+          manageSharedList.observeVisibleLists(),
+          filterBundleFlow,
+        ) { catalogResult, visibleLists, (query, chip, collectionFilter, swipe) ->
           when (catalogResult) {
             DataResult.Loading -> WishlistUiState.Loading
             is DataResult.Error -> WishlistUiState.Error(catalogResult.message)
@@ -142,6 +156,7 @@ constructor(
                 selectedFilter = chip,
                 activeCollectionQuery = collectionFilter,
                 smartCollections = catalogResult.data.smartCollections,
+                sharedLists = visibleLists,
                 filteredProducts = filtered,
                 swipeEvent = swipe,
               )
@@ -213,6 +228,12 @@ constructor(
         SwipeUndoType.ARCHIVED -> manageWishlistItem.setArchived(event.productId, false)
       }
       swipeEventFlow.value = null
+    }
+  }
+
+  fun assignProductToSharedList(productId: String, sharedListId: String?) {
+    viewModelScope.launch {
+      manageWishlistItem.assignSharedList(productId, sharedListId)
     }
   }
 

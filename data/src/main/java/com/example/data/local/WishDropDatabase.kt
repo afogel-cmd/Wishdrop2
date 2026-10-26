@@ -46,7 +46,7 @@ import com.example.data.local.entity.WishlistEntity
       TagEntity::class,
       RecommendationEntity::class,
     ],
-  version = 2,
+  version = 5,
   exportSchema = false,
 )
 abstract class WishDropDatabase : RoomDatabase() {

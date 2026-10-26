@@ -22,8 +22,10 @@ import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Coffee
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Dock
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -92,6 +94,8 @@ object WishDropIcons {
   val SearchFilled: ImageVector = Icons.Filled.Search
   val SearchOutlined: ImageVector = Icons.Outlined.Search
   val Clear: ImageVector = Icons.Filled.Clear
+  val Delete: ImageVector = Icons.Filled.Delete
+  val Edit: ImageVector = Icons.Filled.Edit
   val Add: ImageVector = Icons.Filled.Add
   val Check: ImageVector = Icons.Filled.Check
   val CheckCircle: ImageVector = Icons.Filled.CheckCircle

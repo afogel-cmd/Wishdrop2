@@ -146,4 +146,11 @@ constructor(
       manageWishlistItem.addComment(current.id, clean)
     }
   }
+
+  fun addProductPhoto(photoUrl: String) {
+    val current = (uiState.value as? ProductDetailsUiState.Success)?.product ?: return
+    viewModelScope.launch {
+      manageWishlistItem.addProductPhoto(current.id, photoUrl)
+    }
+  }
 }

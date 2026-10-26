@@ -144,6 +144,55 @@ constructor(private val manageGiftPlan: ManageGiftPlanUseCase) : ViewModel() {
     }
   }
 
+  fun dismissRecommendation(recommendationId: String) {
+    viewModelScope.launch {
+      manageGiftPlan.dismissRecommendation(recommendationId)
+      snackbarFlow.value = "Recommendation dismissed"
+    }
+  }
+
+  fun generateAiRecommendations() {
+    val current = uiState.value as? GiftAssistantUiState.Success ?: return
+    viewModelScope.launch {
+      manageGiftPlan.generateAiRecommendations(current.selectedRecipient.id)
+      snackbarFlow.value = "Új AI ajándékötletek generálva ${current.selectedRecipient.name} részére"
+    }
+  }
+
+  fun deletePerson(recipientId: String) {
+    viewModelScope.launch {
+      manageGiftPlan.deletePerson(recipientId)
+      snackbarFlow.value = "Person removed"
+    }
+  }
+
+  fun updatePerson(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interestsCsv: String,
+  ) {
+    if (name.isBlank()) return
+    viewModelScope.launch {
+      val interests =
+        interestsCsv
+          .split(",")
+          .map { it.trim() }
+          .filter { it.isNotEmpty() }
+      manageGiftPlan.updatePerson(
+        recipientId = recipientId,
+        name = name,
+        relationship = relationship,
+        eventName = eventName,
+        daysUntilEvent = daysUntilEvent,
+        interests = interests,
+      )
+      snackbarFlow.value = "Updated $name"
+    }
+  }
+
   fun addNewPerson(
     name: String,
     relationship: String,

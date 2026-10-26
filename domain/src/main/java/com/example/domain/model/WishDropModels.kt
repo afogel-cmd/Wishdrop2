@@ -97,6 +97,7 @@ data class Product(
   val createdAtMillis: Long = 0L,
   val alternatives: List<AlternativeProduct> = emptyList(),
   val storeOffers: List<StoreOffer> = emptyList(),
+  val additionalImages: List<String> = emptyList(),
 )
 
 @Serializable
@@ -120,6 +121,7 @@ data class GiftRecipient(
   val interests: List<String>,
   val giftStage: GiftStage,
   val accentKey: String,
+  val avatarUrl: String? = null,
 )
 
 @Serializable
@@ -309,4 +311,5 @@ data class ExtractedProductDraft(
   val alternatives: List<AlternativeProduct>,
   val storeOffers: List<StoreOffer>,
   val sharedListId: String? = null,
+  val additionalImages: List<String> = emptyList(),
 )

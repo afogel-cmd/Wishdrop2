@@ -38,9 +38,9 @@ object WishDropSeedCatalog {
       UserEntity(
         id = "usr_attila",
         authUid = "00000000-0000-0000-0000-000000000001",
-        email = "attila.kovacs@pixelmail.hu",
-        displayName = "Attila Kovács",
-        avatarKey = "avatar_attila",
+        email = "felhasznalo@gmail.com",
+        displayName = "Saját profil",
+        avatarKey = "avatar_user",
         linkedMemberId = "rec_attila",
         createdAtMillis = BASE_NOW_MS - 120 * DAY_MS,
       ),

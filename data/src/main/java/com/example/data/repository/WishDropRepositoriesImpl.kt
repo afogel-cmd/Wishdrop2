@@ -141,6 +141,9 @@ internal fun ProductEntity.toDomain(): Product =
     storeOffers =
       runCatching { repositoryJson.decodeFromString<List<StoreOffer>>(storeOffersJson) }
         .getOrDefault(emptyList()),
+    additionalImages =
+      runCatching { repositoryJson.decodeFromString<List<String>>(additionalImagesJson) }
+        .getOrDefault(emptyList()),
   )
 
 internal fun GiftRecipientEntity.toDomain(): GiftRecipient =
@@ -157,6 +160,7 @@ internal fun GiftRecipientEntity.toDomain(): GiftRecipient =
         .getOrDefault(emptyList()),
     giftStage = runCatching { GiftStage.valueOf(giftStageName) }.getOrDefault(GiftStage.IDEA),
     accentKey = accentKey,
+    avatarUrl = avatarUrl,
   )
 
 internal fun RecommendationEntity.toDomain(): AiRecommendation =
@@ -494,6 +498,7 @@ constructor(
         createdAtMillis = System.currentTimeMillis(),
         alternativesJson = repositoryJson.encodeToString(draft.alternatives),
         storeOffersJson = repositoryJson.encodeToString(draft.storeOffers),
+        additionalImagesJson = repositoryJson.encodeToString(draft.additionalImages),
       )
 
     productDao.upsertProduct(entity)
@@ -585,6 +590,20 @@ constructor(
     remoteDataSource.notifyLocalMutation("products", "UPDATE")
   }
 
+  override suspend fun addProductPhoto(productId: String, photoUrl: String) {
+    val current = productDao.getProductById(productId) ?: return
+    val existing = runCatching {
+      repositoryJson.decodeFromString<List<String>>(current.additionalImagesJson)
+    }.getOrDefault(emptyList())
+    val updatedList = (existing + photoUrl).distinct()
+    val updated = current.copy(
+      imageKey = if (current.imageKey.isBlank() || current.imageKey == "default") photoUrl else current.imageKey,
+      additionalImagesJson = repositoryJson.encodeToString(updatedList),
+    )
+    productDao.upsertProduct(updated)
+    remoteDataSource.notifyLocalMutation("products", "UPDATE")
+  }
+
   private suspend fun recordProductActivity(
     productId: String,
     sharedListId: String?,
@@ -639,8 +658,11 @@ constructor(
   override fun observeRecommendationsForRecipient(
     recipientId: String
   ): Flow<List<AiRecommendation>> =
-    recommendationDao.observeRecommendationsForRecipient(recipientId).map { list ->
-      list.map { it.toDomain() }
+    combine(
+      recommendationDao.observeRecommendationsForRecipient(recipientId),
+      preferencesRepository.preferencesFlow.map { it.dismissedRecommendationIds }.distinctUntilChanged(),
+    ) { list, dismissed ->
+      list.filterNot { it.id in dismissed }.map { it.toDomain() }
     }
 
   override suspend fun updateGiftStage(recipientId: String, stage: GiftStage) {
@@ -669,6 +691,7 @@ constructor(
     daysUntilEvent: Int,
     budgetHuf: Int,
     interests: List<String>,
+    avatarUrl: String?,
   ): String {
     initializer.ensureSeeded()
     val id = "rec_${UUID.randomUUID().toString().take(6)}"
@@ -688,6 +711,7 @@ constructor(
           repositoryJson.encodeToString(interests.ifEmpty { listOf("Gift", "Home Decor") }),
         giftStageName = GiftStage.IDEA.name,
         accentKey = accents[index],
+        avatarUrl = avatarUrl,
       )
     recipientDao.upsertRecipient(entity)
     recommendationDao.upsertRecommendation(
@@ -706,6 +730,95 @@ constructor(
       )
     )
     return id
+  }
+
+  override suspend fun updateRecipient(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interests: List<String>,
+    avatarUrl: String?,
+  ) {
+    val current = recipientDao.getRecipientById(recipientId)
+    if (current != null) {
+      val updated =
+        current.copy(
+          name = name.trim(),
+          relationship = relationship.trim().ifBlank { "Family" },
+          upcomingEventName = eventName.trim().ifBlank { "Celebration" },
+          daysUntilEvent = daysUntilEvent.coerceAtLeast(0),
+          interestsJson = repositoryJson.encodeToString(interests),
+          avatarUrl = avatarUrl ?: current.avatarUrl,
+        )
+      recipientDao.upsertRecipient(updated)
+    } else {
+      recipientDao.updateRecipientDetails(
+        recipientId = recipientId,
+        name = name.trim(),
+        relationship = relationship.trim().ifBlank { "Family" },
+        eventName = eventName.trim().ifBlank { "Celebration" },
+        daysUntilEvent = daysUntilEvent.coerceAtLeast(0),
+        interestsJson = repositoryJson.encodeToString(interests),
+      )
+    }
+  }
+
+  override suspend fun deleteRecipient(recipientId: String) {
+    recipientDao.deleteRecipient(recipientId)
+    productDao.clearRecipientFromProducts(recipientId)
+    recommendationDao.deleteRecommendationsForRecipient(recipientId)
+  }
+
+  override suspend fun dismissRecommendation(recommendationId: String) {
+    recommendationDao.deleteRecommendation(recommendationId)
+    preferencesRepository.addDismissedRecommendation(recommendationId)
+  }
+
+  override suspend fun generateAiRecommendations(recipientId: String) {
+    val recipientEntity = recipientDao.getRecipientById(recipientId) ?: return
+    val recipient = recipientEntity.toDomain()
+    val interests = recipient.interests
+    val budget = recipient.budgetHuf.let { if (it <= 0) 25_000 else it }
+
+    val generatedCatalog = listOf(
+      Triple("Fellow Stagg EKG Kávékiöntő", 42_990, listOf("Coffee", "Kitchen")),
+      Triple("Hario V60 Kerámia Csepegtető Szett", 14_890, listOf("Coffee", "Gift")),
+      Triple("LEGO Icons Vadvirág Csokor", 19_990, listOf("Flowers", "LEGO", "Decor")),
+      Triple("LEGO Botanical Bonsai Fa", 17_990, listOf("LEGO", "Home", "Decor")),
+      Triple("Google Pixel Buds Pro 2 Fülhallgató", 78_900, listOf("Audio", "Tech", "Pixel")),
+      Triple("Anker Magnetic PowerBank 10000mAh", 18_490, listOf("Tech", "Accessories")),
+      Triple("Taschen Művészeti És Design Díszalbum", 22_500, listOf("Books", "Art")),
+      Triple("Kindle Paperwhite 16GB E-könyv Olvasó", 59_990, listOf("Books", "Tech")),
+      Triple("Handcrafted Bőr Jegyzettömb & Bőrtok", 12_990, listOf("Gift", "Office")),
+      Triple("Smart Ambient Intelligens Asztali Lámpa", 28_990, listOf("Home", "Tech")),
+    )
+
+    val matching = generatedCatalog.filter { item ->
+      val tags = item.third
+      tags.any { tag -> interests.any { interest -> interest.contains(tag, ignoreCase = true) || tag.contains(interest, ignoreCase = true) } }
+    }.ifEmpty { generatedCatalog.shuffled().take(3) }
+
+    val selected = matching.shuffled().take(3)
+    selected.forEach { item ->
+      val recId = "ai_rec_${UUID.randomUUID().toString().take(6)}"
+      recommendationDao.upsertRecommendation(
+        RecommendationEntity(
+          id = recId,
+          recipientId = recipientId,
+          title = item.first,
+          store = "WishDrop AI Verified",
+          priceHuf = item.second.coerceAtMost(budget),
+          imageKey = if (item.first.contains("LEGO")) "lego_bonsai" else if (item.first.contains("Pixel")) "pixel_buds" else "art_book",
+          matchPercentage = (86..98).random(),
+          reason = "${recipient.name} érdeklődési körei (${interests.joinToString(", ").ifBlank { "Személyes ajándék" }}) alapján AI által ajánlva.",
+          categoriesJson = repositoryJson.encodeToString(item.third),
+          tagsJson = repositoryJson.encodeToString(interests + item.third),
+          linkedProductId = null,
+        )
+      )
+    }
   }
 
   override suspend fun saveRecommendationToWishlist(recommendation: AiRecommendation): String {

@@ -135,6 +135,9 @@ constructor(
 
   suspend fun saveDraft(draft: ExtractedProductDraft): String =
     productRepository.saveDraftProduct(draft)
+
+  suspend fun addProductPhoto(productId: String, photoUrl: String) =
+    productRepository.addProductPhoto(productId, photoUrl)
 }
 
 class ManageSharedListUseCase
@@ -164,8 +167,22 @@ constructor(
     hiddenFromMemberId: String?,
   ) = sharedListRepository.updateListVisibility(listId, visibility, hiddenFromMemberId)
 
+  suspend fun updateListDetails(
+    listId: String,
+    title: String,
+    emoji: String,
+    subtitle: String,
+    visibility: ListVisibility,
+    hiddenFromMemberId: String?,
+  ) = sharedListRepository.updateSharedList(listId, title, emoji, subtitle, visibility, hiddenFromMemberId)
+
+  suspend fun deleteList(listId: String) = sharedListRepository.deleteSharedList(listId)
+
   suspend fun updateMemberRole(listId: String, memberId: String, role: ListMemberRole) =
     sharedListRepository.updateMemberRole(listId, memberId, role)
+
+  suspend fun removeMember(listId: String, memberId: String) =
+    sharedListRepository.removeMember(listId, memberId)
 
   suspend fun addQuickProductIdea(
     listId: String,
@@ -208,6 +225,9 @@ constructor(
 
   suspend fun switchActivePersona(memberId: String) =
     authRepository.switchActivePersona(memberId)
+
+  suspend fun deleteFamilyMember(memberId: String) =
+    authRepository.deleteFamilyMember(memberId)
 }
 
 class ManageGiftPlanUseCase
@@ -233,6 +253,33 @@ constructor(private val giftRepository: GiftRepository) {
   suspend fun saveRecommendation(recommendation: AiRecommendation): String =
     giftRepository.saveRecommendationToWishlist(recommendation)
 
+  suspend fun dismissRecommendation(recommendationId: String) =
+    giftRepository.dismissRecommendation(recommendationId)
+
+  suspend fun generateAiRecommendations(recipientId: String) =
+    giftRepository.generateAiRecommendations(recipientId)
+
+  suspend fun deletePerson(recipientId: String) =
+    giftRepository.deleteRecipient(recipientId)
+
+  suspend fun updatePerson(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interests: List<String>,
+    avatarUrl: String? = null,
+  ) = giftRepository.updateRecipient(
+    recipientId = recipientId,
+    name = name,
+    relationship = relationship,
+    eventName = eventName,
+    daysUntilEvent = daysUntilEvent,
+    interests = interests,
+    avatarUrl = avatarUrl,
+  )
+
   suspend fun addPerson(
     name: String,
     relationship: String,
@@ -240,8 +287,9 @@ constructor(private val giftRepository: GiftRepository) {
     daysUntilEvent: Int,
     budgetHuf: Int,
     interests: List<String>,
+    avatarUrl: String? = null,
   ): String =
-    giftRepository.addRecipient(name, relationship, eventName, daysUntilEvent, budgetHuf, interests)
+    giftRepository.addRecipient(name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl)
 }
 
 class AnalyzeProductInputUseCase

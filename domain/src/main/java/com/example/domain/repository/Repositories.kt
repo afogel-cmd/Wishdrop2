@@ -47,6 +47,8 @@ interface ProductRepository {
   suspend fun assignRecipient(productId: String, recipientId: String?, confidence: Int = 100)
 
   suspend fun assignProductToSharedList(productId: String, sharedListId: String?)
+
+  suspend fun addProductPhoto(productId: String, photoUrl: String)
 }
 
 interface SharedListRepository {
@@ -62,6 +64,17 @@ interface SharedListRepository {
     hiddenFromMemberId: String?,
   ): String
 
+  suspend fun updateSharedList(
+    listId: String,
+    title: String,
+    emoji: String,
+    subtitle: String,
+    visibility: ListVisibility,
+    hiddenFromMemberId: String?,
+  )
+
+  suspend fun deleteSharedList(listId: String)
+
   suspend fun updateListVisibility(
     listId: String,
     visibility: ListVisibility,
@@ -69,6 +82,8 @@ interface SharedListRepository {
   )
 
   suspend fun updateMemberRole(listId: String, memberId: String, role: ListMemberRole)
+
+  suspend fun removeMember(listId: String, memberId: String)
 
   suspend fun addProductIdeaToList(
     listId: String,
@@ -112,6 +127,8 @@ interface AuthRepository {
   suspend fun signOutCloudSession()
 
   suspend fun switchActivePersona(memberId: String)
+
+  suspend fun deleteFamilyMember(memberId: String)
 }
 
 interface GiftRepository {
@@ -136,9 +153,26 @@ interface GiftRepository {
     daysUntilEvent: Int,
     budgetHuf: Int,
     interests: List<String>,
+    avatarUrl: String? = null,
   ): String
 
+  suspend fun updateRecipient(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interests: List<String>,
+    avatarUrl: String? = null,
+  )
+
+  suspend fun deleteRecipient(recipientId: String)
+
   suspend fun saveRecommendationToWishlist(recommendation: AiRecommendation): String
+
+  suspend fun dismissRecommendation(recommendationId: String)
+
+  suspend fun generateAiRecommendations(recipientId: String)
 }
 
 interface InsightsRepository {

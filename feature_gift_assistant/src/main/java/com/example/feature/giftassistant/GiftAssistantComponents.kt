@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -296,6 +297,7 @@ internal fun SavedIdeaMiniCard(
 internal fun AiGiftRecommendationCard(
   recommendation: AiRecommendation,
   onSaveOrView: () -> Unit,
+  onDismiss: () -> Unit,
 ) {
   val alreadySaved = recommendation.linkedProductId != null
   PixelBentoCard(
@@ -317,7 +319,24 @@ internal fun AiGiftRecommendationCard(
           modifier = Modifier.weight(1f),
           verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-          AiMatchBadge(matchPercentage = recommendation.matchPercentage)
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            AiMatchBadge(matchPercentage = recommendation.matchPercentage)
+            IconButton(
+              onClick = onDismiss,
+              modifier = Modifier.size(28.dp).testTag("gift_rec_dismiss_${recommendation.id}"),
+            ) {
+              Icon(
+                imageVector = WishDropIcons.Delete,
+                contentDescription = "Dismiss recommendation",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp),
+              )
+            }
+          }
           Text(
             text = recommendation.title,
             style = MaterialTheme.typography.titleLarge,

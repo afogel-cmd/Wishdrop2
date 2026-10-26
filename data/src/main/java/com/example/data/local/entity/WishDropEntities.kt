@@ -123,6 +123,7 @@ data class ProductEntity(
   val createdAtMillis: Long,
   val alternativesJson: String = "[]",
   val storeOffersJson: String = "[]",
+  val additionalImagesJson: String = "[]",
 )
 
 @Serializable
@@ -207,6 +208,7 @@ data class GiftRecipientEntity(
   val interestsJson: String,
   val giftStageName: String,
   val accentKey: String,
+  val avatarUrl: String? = null,
 )
 
 @Serializable

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview as CameraPreview
@@ -15,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -53,11 +57,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -537,12 +543,89 @@ private fun ReviewDraftContent(
     }
 
     item(key = "review_artwork", contentType = "artwork") {
-      WishProductArtwork(
-        imageKey = draft.imageKey,
-        productTitle = draft.title,
-        shape = WishDropDesign.radii.large,
-        modifier = Modifier.fillMaxWidth().height(190.dp),
-      )
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        val galleryImages = remember(draft.imageKey, draft.additionalImages) {
+          (listOf(draft.imageKey) + draft.additionalImages).distinct().filter { it.isNotBlank() }
+        }
+        var selectedImageIndex by remember { mutableStateOf(0) }
+        val currentImage = galleryImages.getOrElse(selectedImageIndex) { draft.imageKey }
+
+        WishProductArtwork(
+          imageKey = currentImage,
+          productTitle = draft.title,
+          shape = WishDropDesign.radii.large,
+          modifier = Modifier.fillMaxWidth().height(210.dp),
+        )
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          if (galleryImages.size > 1) {
+            LazyRow(
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              modifier = Modifier.weight(1f, fill = false),
+            ) {
+              itemsIndexed(galleryImages) { idx, imgKey ->
+                Box(
+                  modifier = Modifier
+                    .size(52.dp)
+                    .clip(WishDropDesign.radii.small)
+                    .border(
+                      width = if (idx == selectedImageIndex) 2.dp else 0.dp,
+                      color = if (idx == selectedImageIndex) MaterialTheme.colorScheme.primary else Color.Transparent,
+                      shape = WishDropDesign.radii.small,
+                    )
+                    .clickable {
+                      selectedImageIndex = idx
+                      onUpdateDraft { it.copy(imageKey = imgKey) }
+                    }
+                ) {
+                  WishProductArtwork(
+                    imageKey = imgKey,
+                    productTitle = draft.title,
+                    modifier = Modifier.fillMaxSize(),
+                  )
+                }
+              }
+            }
+          } else {
+            Spacer(modifier = Modifier.width(4.dp))
+          }
+
+          val photoPicker = rememberLauncherForActivityResult(
+            ActivityResultContracts.PickVisualMedia()
+          ) { uri ->
+            if (uri != null) {
+              val customUrl = uri.toString()
+              onUpdateDraft { current ->
+                current.copy(
+                  imageKey = customUrl,
+                  additionalImages = (listOf(customUrl) + current.additionalImages).distinct(),
+                )
+              }
+            }
+          }
+
+          OutlinedButton(
+            onClick = {
+              photoPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+              )
+            },
+            modifier = Modifier.minimumInteractiveComponentSize(),
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Add,
+              contentDescription = null,
+              modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Fotó feltöltése")
+          }
+        }
+      }
     }
 
     item(key = "review_fields", contentType = "fields") {

@@ -27,8 +27,9 @@ enum class ThemeMode {
 
 data class UserPreferences(
   val activeMemberId: String = "rec_attila",
-  val displayName: String = "Attila Kovács",
-  val email: String = "attila.kovacs@pixelmail.hu",
+  val displayName: String = "Saját profil",
+  val email: String = "felhasznalo@gmail.com",
+  val avatarUrl: String? = null,
   val isCloudAuthenticated: Boolean = false,
   val supabaseUserId: String? = null,
   val supabaseAccessToken: String? = null,
@@ -39,6 +40,7 @@ data class UserPreferences(
   val aiAutoCategorization: Boolean = true,
   val aiRecipientMatching: Boolean = true,
   val aiConfidenceThreshold: Float = 0.80f,
+  val dismissedRecommendationIds: Set<String> = emptySet(),
 )
 
 interface UserPreferencesRepository {
@@ -58,7 +60,9 @@ interface UserPreferencesRepository {
 
   suspend fun setAiConfidenceThreshold(threshold: Float)
 
-  suspend fun updateProfile(displayName: String, email: String)
+  suspend fun addDismissedRecommendation(id: String)
+
+  suspend fun updateProfile(displayName: String, email: String, avatarUrl: String? = null)
 
   suspend fun switchActiveFamilyMember(memberId: String, displayName: String, email: String)
 
@@ -67,6 +71,7 @@ interface UserPreferencesRepository {
     accessToken: String?,
     email: String?,
     displayName: String?,
+    avatarUrl: String? = null,
   )
 }
 
@@ -82,6 +87,7 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     val ACTIVE_MEMBER_ID = stringPreferencesKey("active_member_id")
     val DISPLAY_NAME = stringPreferencesKey("display_name")
     val EMAIL = stringPreferencesKey("email")
+    val AVATAR_URL = stringPreferencesKey("avatar_url")
     val IS_CLOUD_AUTH = booleanPreferencesKey("is_cloud_authenticated")
     val SUPABASE_USER_ID = stringPreferencesKey("supabase_user_id")
     val SUPABASE_ACCESS_TOKEN = stringPreferencesKey("supabase_access_token")
@@ -92,6 +98,7 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     val AI_AUTO_CATEGORIZE = booleanPreferencesKey("ai_auto_categorize")
     val AI_RECIPIENT_MATCH = booleanPreferencesKey("ai_recipient_match")
     val AI_CONFIDENCE = floatPreferencesKey("ai_confidence")
+    val DISMISSED_RECOMMENDATION_IDS = androidx.datastore.preferences.core.stringSetPreferencesKey("dismissed_recommendation_ids")
   }
 
   override val preferencesFlow: Flow<UserPreferences> =
@@ -101,8 +108,9 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
         runCatching { ThemeMode.valueOf(modeString) }.getOrDefault(ThemeMode.SYSTEM)
       UserPreferences(
         activeMemberId = prefs[Keys.ACTIVE_MEMBER_ID] ?: "rec_attila",
-        displayName = prefs[Keys.DISPLAY_NAME] ?: "Attila Kovács",
-        email = prefs[Keys.EMAIL] ?: "attila.kovacs@pixelmail.hu",
+        displayName = prefs[Keys.DISPLAY_NAME] ?: "Saját profil",
+        email = prefs[Keys.EMAIL] ?: "felhasznalo@gmail.com",
+        avatarUrl = prefs[Keys.AVATAR_URL],
         isCloudAuthenticated = prefs[Keys.IS_CLOUD_AUTH] ?: false,
         supabaseUserId = prefs[Keys.SUPABASE_USER_ID],
         supabaseAccessToken = prefs[Keys.SUPABASE_ACCESS_TOKEN],
@@ -113,8 +121,16 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
         aiAutoCategorization = prefs[Keys.AI_AUTO_CATEGORIZE] ?: true,
         aiRecipientMatching = prefs[Keys.AI_RECIPIENT_MATCH] ?: true,
         aiConfidenceThreshold = prefs[Keys.AI_CONFIDENCE] ?: 0.80f,
+        dismissedRecommendationIds = prefs[Keys.DISMISSED_RECOMMENDATION_IDS] ?: emptySet(),
       )
     }
+
+  override suspend fun addDismissedRecommendation(id: String) {
+    dataStore.edit {
+      val current = it[Keys.DISMISSED_RECOMMENDATION_IDS] ?: emptySet()
+      it[Keys.DISMISSED_RECOMMENDATION_IDS] = current + id
+    }
+  }
 
   override suspend fun setThemeMode(mode: ThemeMode) {
     dataStore.edit { it[Keys.THEME_MODE] = mode.name }
@@ -144,10 +160,15 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     dataStore.edit { it[Keys.AI_CONFIDENCE] = threshold.coerceIn(0.50f, 0.99f) }
   }
 
-  override suspend fun updateProfile(displayName: String, email: String) {
+  override suspend fun updateProfile(displayName: String, email: String, avatarUrl: String?) {
     dataStore.edit {
-      it[Keys.DISPLAY_NAME] = displayName.trim().ifBlank { "Attila Kovács" }
-      it[Keys.EMAIL] = email.trim().ifBlank { "attila.kovacs@pixelmail.hu" }
+      it[Keys.DISPLAY_NAME] = displayName.trim().ifBlank { "Saját profil" }
+      it[Keys.EMAIL] = email.trim().ifBlank { "felhasznalo@gmail.com" }
+      if (!avatarUrl.isNullOrBlank()) {
+        it[Keys.AVATAR_URL] = avatarUrl
+      } else if (avatarUrl != null) {
+        it.remove(Keys.AVATAR_URL)
+      }
     }
   }
 
@@ -168,6 +189,7 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     accessToken: String?,
     email: String?,
     displayName: String?,
+    avatarUrl: String?,
   ) {
     dataStore.edit {
       it[Keys.IS_CLOUD_AUTH] = userId != null
@@ -186,6 +208,9 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       }
       if (!displayName.isNullOrBlank()) {
         it[Keys.DISPLAY_NAME] = displayName.trim()
+      }
+      if (!avatarUrl.isNullOrBlank()) {
+        it[Keys.AVATAR_URL] = avatarUrl
       }
     }
   }

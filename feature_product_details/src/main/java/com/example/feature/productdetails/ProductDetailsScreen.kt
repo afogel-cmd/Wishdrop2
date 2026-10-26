@@ -2,7 +2,12 @@ package com.example.feature.productdetails
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,10 +42,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -94,6 +103,7 @@ fun ProductDetailsRouteScreen(
     onAssignRecipient = viewModel::assignRecipient,
     onAssignSharedList = viewModel::assignSharedList,
     onAddComment = viewModel::addComment,
+    onAddProductPhoto = viewModel::addProductPhoto,
     onShareProduct = { product ->
       val sendIntent =
         Intent(Intent.ACTION_SEND).apply {
@@ -123,6 +133,7 @@ fun ProductDetailsScreenContent(
   onOpenAlternativeProduct: (String) -> Unit,
   onAssignSharedList: (String?) -> Unit = {},
   onAddComment: (String) -> Unit = {},
+  onAddProductPhoto: (String) -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
   var showRecipientPicker by rememberSaveable { mutableStateOf(false) }
@@ -257,12 +268,80 @@ fun ProductDetailsScreenContent(
             }
 
             item(key = "hero_image", contentType = "hero_image") {
-              WishProductArtwork(
-                imageKey = product.imageKey,
-                productTitle = product.title,
-                shape = WishDropDesign.radii.extraLarge,
-                modifier = Modifier.fillMaxWidth().height(268.dp).testTag("details_hero_image"),
-              )
+              Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val galleryImages = remember(product.imageKey, product.additionalImages) {
+                  (listOf(product.imageKey) + product.additionalImages).distinct().filter { it.isNotBlank() }
+                }
+                var selectedImageIndex by remember { mutableStateOf(0) }
+                val currentImage = galleryImages.getOrElse(selectedImageIndex) { product.imageKey }
+
+                WishProductArtwork(
+                  imageKey = currentImage,
+                  productTitle = product.title,
+                  shape = WishDropDesign.radii.extraLarge,
+                  modifier = Modifier.fillMaxWidth().height(268.dp).testTag("details_hero_image"),
+                )
+
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  if (galleryImages.size > 1) {
+                    LazyRow(
+                      horizontalArrangement = Arrangement.spacedBy(8.dp),
+                      modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                      itemsIndexed(galleryImages) { idx, imgKey ->
+                        Box(
+                          modifier = Modifier
+                            .size(52.dp)
+                            .clip(WishDropDesign.radii.small)
+                            .border(
+                              width = if (idx == selectedImageIndex) 2.dp else 0.dp,
+                              color = if (idx == selectedImageIndex) MaterialTheme.colorScheme.primary else Color.Transparent,
+                              shape = WishDropDesign.radii.small,
+                            )
+                            .clickable { selectedImageIndex = idx }
+                        ) {
+                          WishProductArtwork(
+                            imageKey = imgKey,
+                            productTitle = product.title,
+                            modifier = Modifier.fillMaxSize(),
+                          )
+                        }
+                      }
+                    }
+                  } else {
+                    Spacer(modifier = Modifier.width(4.dp))
+                  }
+
+                  val photoPicker = rememberLauncherForActivityResult(
+                    ActivityResultContracts.PickVisualMedia()
+                  ) { uri ->
+                    if (uri != null) {
+                      onAddProductPhoto(uri.toString())
+                    }
+                  }
+
+                  OutlinedButton(
+                    onClick = {
+                      photoPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                      )
+                    },
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                  ) {
+                    Icon(
+                      imageVector = WishDropIcons.Add,
+                      contentDescription = null,
+                      modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Kép hozzáadása")
+                  }
+                }
+              }
             }
 
             item(key = "title_and_price", contentType = "price_hero") {

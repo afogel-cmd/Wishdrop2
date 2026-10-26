@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -32,7 +33,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.example.designsystem.R
 import com.example.designsystem.icon.WishDropIcons
 import com.example.designsystem.theme.WishDropDesign
@@ -44,6 +46,7 @@ fun WishProductArtwork(
   modifier: Modifier = Modifier,
   shape: Shape = WishDropDesign.radii.medium,
 ) {
+  val context = LocalContext.current
   val contentDescription = stringResource(R.string.cd_product_image, productTitle)
   val localDrawableRes =
     remember(imageKey) {
@@ -56,6 +59,14 @@ fun WishProductArtwork(
       }
     }
 
+  val isNetworkOrLocalUrl = remember(imageKey) {
+    imageKey.startsWith("http://") ||
+      imageKey.startsWith("https://") ||
+      imageKey.startsWith("content://") ||
+      imageKey.startsWith("file://") ||
+      imageKey.startsWith("/")
+  }
+
   Box(modifier = modifier.clip(shape), contentAlignment = Alignment.Center) {
     when {
       localDrawableRes != null -> {
@@ -66,15 +77,25 @@ fun WishProductArtwork(
           modifier = Modifier.fillMaxSize(),
         )
       }
-      imageKey.startsWith("http://") ||
-        imageKey.startsWith("https://") ||
-        imageKey.startsWith("content://") -> {
-        StudioIllustrationBackdrop(imageKey = "default", title = productTitle)
-        AsyncImage(
-          model = imageKey,
+      isNetworkOrLocalUrl -> {
+        val imageRequest = remember(imageKey) {
+          ImageRequest.Builder(context)
+            .data(imageKey)
+            .crossfade(true)
+            .allowHardware(false)
+            .build()
+        }
+        SubcomposeAsyncImage(
+          model = imageRequest,
           contentDescription = contentDescription,
           contentScale = ContentScale.Crop,
           modifier = Modifier.fillMaxSize(),
+          loading = {
+            StudioIllustrationBackdrop(imageKey = "default", title = productTitle)
+          },
+          error = {
+            StudioIllustrationBackdrop(imageKey = imageKey, title = productTitle)
+          },
         )
       }
       else -> {
@@ -228,6 +249,7 @@ fun PersonAvatarBadge(
   name: String,
   accentKey: String,
   modifier: Modifier = Modifier,
+  imageUrl: String? = null,
   size: Dp = 52.dp,
 ) {
   val avatarDescription = stringResource(R.string.cd_person_avatar, name)
@@ -240,38 +262,69 @@ fun PersonAvatarBadge(
         else -> Pair(Color(0xFFDCE2FF), Color(0xFF28208C))
       }
     }
-  val initials =
-    remember(name) {
-      name
-        .trim()
-        .split(" ")
-        .filter { it.isNotEmpty() }
-        .take(2)
-        .joinToString("") { it.first().uppercaseChar().toString() }
-        .ifEmpty { "W" }
-    }
 
-  Box(
-    modifier =
-      modifier
-        .size(size)
-        .clip(CircleShape)
-        .background(
-          Brush.linearGradient(
-            listOf(palette.first, palette.first.copy(alpha = 0.78f))
-          )
-        )
-        .padding(4.dp)
-        .semantics { contentDescription = avatarDescription },
-    contentAlignment = Alignment.Center,
-  ) {
-    Text(
-      text = initials,
-      style =
-        if (size >= 56.dp) MaterialTheme.typography.titleLarge
-        else MaterialTheme.typography.titleMedium,
-      fontWeight = FontWeight.Bold,
-      color = palette.second,
+  if (!imageUrl.isNullOrBlank()) {
+    val context = LocalContext.current
+    val imageRequest = remember(imageUrl) {
+      ImageRequest.Builder(context)
+        .data(imageUrl)
+        .crossfade(true)
+        .allowHardware(false)
+        .build()
+    }
+    SubcomposeAsyncImage(
+      model = imageRequest,
+      contentDescription = avatarDescription,
+      contentScale = ContentScale.Crop,
+      modifier =
+        modifier
+          .size(size)
+          .clip(CircleShape)
+          .background(palette.first),
+      error = {
+        val initials = name.trim().split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercaseChar() }.joinToString("").ifEmpty { "W" }
+        Box(
+          modifier = modifier.size(size).clip(CircleShape).background(palette.first),
+          contentAlignment = Alignment.Center,
+        ) {
+          Text(text = initials, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = palette.second)
+        }
+      },
     )
+  } else {
+    val initials =
+      remember(name) {
+        name
+          .trim()
+          .split(" ")
+          .filter { it.isNotEmpty() }
+          .take(2)
+          .joinToString("") { it.first().uppercaseChar().toString() }
+          .ifEmpty { "W" }
+      }
+
+    Box(
+      modifier =
+        modifier
+          .size(size)
+          .clip(CircleShape)
+          .background(
+            Brush.linearGradient(
+              listOf(palette.first, palette.first.copy(alpha = 0.78f))
+            )
+          )
+          .padding(4.dp)
+          .semantics { contentDescription = avatarDescription },
+      contentAlignment = Alignment.Center,
+    ) {
+      Text(
+        text = initials,
+        style =
+          if (size >= 56.dp) MaterialTheme.typography.titleLarge
+          else MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = palette.second,
+      )
+    }
   }
 }

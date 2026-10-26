@@ -12,6 +12,10 @@ import com.example.domain.model.GiftRecipient
 import com.example.domain.model.RecipientPrediction
 import com.example.domain.model.StoreOffer
 import com.example.domain.repository.GiftRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -218,21 +222,78 @@ class OnDeviceAiAlternativeRecommender @Inject constructor() : AiAlternativeReco
             highlight = "Botanical Set",
           ),
         )
+      lower.contains("nadrag") || lower.contains("chino") || lower.contains("pants") ||
+        lower.contains("shirt") || lower.contains("clothing") || lower.contains("fashion") ||
+        lower.contains("sapka") || lower.contains("kabát") || lower.contains("dress") || lower.contains("reserved") ->
+        listOf(
+          AlternativeProduct(
+            id = "prod_fashion_chino",
+            title = "Slim Fit Chino Nadrág",
+            store = "Zara",
+            priceHuf = (currentPriceHuf * 0.88).roundToInt().coerceAtLeast(12_990),
+            imageKey = "art_book",
+            highlight = "Prémium Pamut",
+          ),
+          AlternativeProduct(
+            id = "prod_fashion_belt",
+            title = "Klasszikus Bőr Öv",
+            store = "Reserved",
+            priceHuf = 12_990,
+            imageKey = "art_book",
+            highlight = "Valódi Bőr",
+          ),
+          AlternativeProduct(
+            id = "prod_fashion_shirt",
+            title = "Elegáns Pamut Ing",
+            store = "H&M",
+            priceHuf = 14_990,
+            imageKey = "art_book",
+            highlight = "Könnyű Vasalás",
+          ),
+        )
+      lower.contains("szaritogep") || lower.contains("mosogep") || lower.contains("bosch") ||
+        lower.contains("whirlpool") || lower.contains("miele") || lower.contains("dryer") ->
+        listOf(
+          AlternativeProduct(
+            id = "prod_appliance_miele",
+            title = "Miele Hőszivattyús Szárítógép",
+            store = "MediaMarkt",
+            priceHuf = (currentPriceHuf * 1.08).roundToInt().coerceAtLeast(249_990),
+            imageKey = "art_book",
+            highlight = "A+++ Miele Eco",
+          ),
+          AlternativeProduct(
+            id = "prod_appliance_samsung",
+            title = "Samsung AI Control Szárítógép",
+            store = "Alza",
+            priceHuf = (currentPriceHuf * 0.92).roundToInt().coerceAtLeast(189_990),
+            imageKey = "art_book",
+            highlight = "AI Auto Dry",
+          ),
+          AlternativeProduct(
+            id = "prod_appliance_whirlpool",
+            title = "Whirlpool FreshCare Szárítógép",
+            store = "Euronics",
+            priceHuf = 179_990,
+            imageKey = "art_book",
+            highlight = "FreshCare+",
+          ),
+        )
       else ->
         listOf(
           AlternativeProduct(
-            id = "prod_pixel_buds_2a",
-            title = "Google Pixel Buds 2a",
-            store = "Yettel",
-            priceHuf = 28_490,
-            imageKey = "pixel_buds",
-            highlight = "Top Deal",
+            id = "prod_gift_idea_1",
+            title = "Handcrafted Bőr Mappa",
+            store = "Reserved",
+            priceHuf = (currentPriceHuf * 0.9).roundToInt().coerceAtLeast(11_990),
+            imageKey = "art_book",
+            highlight = "Személyes Ajándék",
           ),
           AlternativeProduct(
-            id = "prod_pixel_stand",
-            title = "Pixel Stand",
+            id = "prod_gift_idea_2",
+            title = "Smart Desk Organizer",
             store = "Alza",
-            priceHuf = (currentPriceHuf * 0.9).roundToInt().coerceAtLeast(14_990),
+            priceHuf = 16_990,
             imageKey = "pixel_stand",
             highlight = "Smart Pick",
           ),
@@ -241,10 +302,77 @@ class OnDeviceAiAlternativeRecommender @Inject constructor() : AiAlternativeReco
   }
 }
 
+private data class ExtractedWebMetadata(
+  val title: String?,
+  val priceHuf: Int?,
+  val images: List<String>,
+)
+
+private fun normalizeImageUrl(rawUrl: String?, baseUrl: String): String? {
+  if (rawUrl.isNullOrBlank()) return null
+  val trimmed = rawUrl.trim()
+  return when {
+    trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("content://") -> trimmed
+    trimmed.startsWith("//") -> "https:$trimmed"
+    trimmed.startsWith("/") -> {
+      val host = runCatching { URI(baseUrl).host }.getOrNull() ?: ""
+      val scheme = if (baseUrl.startsWith("http://")) "http" else "https"
+      if (host.isNotBlank()) "$scheme://$host$trimmed" else null
+    }
+    else -> "https://$trimmed"
+  }
+}
+
+private fun extractMetadataFromHtml(html: String, baseUrl: String): ExtractedWebMetadata {
+  val jsonLdNamePattern = """"@type"\s*:\s*"Product"[^}]*?"name"\s*:\s*["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+  val ogTitlePattern = """<meta\s+(?:property|name)=["'](?:og:title|twitter:title)["']\s+content=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+  val htmlTitlePattern = """<title>([^<]+)</title>""".toRegex(RegexOption.IGNORE_CASE)
+
+  val rawTitle = jsonLdNamePattern.find(html)?.groupValues?.get(1)
+    ?: ogTitlePattern.find(html)?.groupValues?.get(1)
+    ?: htmlTitlePattern.find(html)?.groupValues?.get(1)
+
+  val cleanTitle = rawTitle?.let { t ->
+    t.substringBefore('|').substringBefore('-').substringBefore("—").trim()
+  }?.takeIf { it.isNotBlank() }
+
+  val jsonLdOfferPricePattern = """"offers"\s*:\s*\{[^}]*?"price"\s*:\s*(\d+)""".toRegex(RegexOption.IGNORE_CASE)
+  val jsonLdPricePattern = """"price"\s*:\s*(\d{5,7})""".toRegex(RegexOption.IGNORE_CASE)
+  val ogPricePattern = """<meta\s+(?:property|name)=["'](?:og:price:amount|product:price:amount|price)["']\s+content=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+  val textPricePattern = """(\d{1,3}(?:\s?\d{3}){1,2})\s*(?:Ft|HUF)""".toRegex(RegexOption.IGNORE_CASE)
+
+  val rawPriceStr = jsonLdOfferPricePattern.find(html)?.groupValues?.get(1)
+    ?: jsonLdPricePattern.find(html)?.groupValues?.get(1)
+    ?: ogPricePattern.find(html)?.groupValues?.get(1)
+    ?: textPricePattern.find(html)?.groupValues?.get(1)?.replace(" ", "")
+
+  val extractedPrice = rawPriceStr?.toDoubleOrNull()?.roundToInt()
+
+  val ogImagePattern = """<meta\s+(?:property|name)=["'](?:og:image|twitter:image|image)["']\s+content=["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+  val assetLinkPattern = """"link"\s*:\s*["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+  val jsonLdImagePattern = """"image"\s*:\s*\[\s*["']([^"']+)["']""".toRegex(RegexOption.IGNORE_CASE)
+
+  val foundImages = (ogImagePattern.findAll(html).map { it.groupValues[1] } +
+    assetLinkPattern.findAll(html).map { it.groupValues[1] } +
+    jsonLdImagePattern.findAll(html).map { it.groupValues[1] }).toList()
+
+  val normalizedImages = foundImages
+    .mapNotNull { normalizeImageUrl(it, baseUrl) }
+    .filter { it.contains("ASSET") || it.contains("product") || it.contains("media") || it.contains("image") || it.contains("mmsrg") }
+    .distinct()
+
+  return ExtractedWebMetadata(
+    title = cleanTitle,
+    priceHuf = extractedPrice,
+    images = normalizedImages,
+  )
+}
+
 @Singleton
 class GeminiReadyProductExtractor
 @Inject
 constructor(
+  private val httpClient: HttpClient,
   private val categoryGenerator: AiCategoryGenerator,
   private val tagGenerator: AiTagGenerator,
   private val recipientDetector: AiRecipientDetector,
@@ -254,36 +382,53 @@ constructor(
 
   override fun extractFromUrl(url: String): Flow<ExtractionProgress> = flow {
     emit(ExtractionProgress.Analyzing("Connecting to store & parsing metadata...", 0.25f))
-    delay(320)
-    val parsed = parseUrlHeuristics(url)
+    val cleanUrl = url.trim()
+    val htmlContent = runCatching {
+      httpClient.get(cleanUrl) {
+        header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+      }.bodyAsText()
+    }.getOrNull()
+
+    val parsed = parseUrlHeuristics(cleanUrl)
+    val webMeta = htmlContent?.let { extractMetadataFromHtml(it, cleanUrl) }
+
+    val finalTitle = webMeta?.title ?: parsed.title
+    val finalPrice = webMeta?.priceHuf ?: parsed.priceHuf
+    val extractedImages = webMeta?.images.orEmpty()
+    val finalMainImage = extractedImages.firstOrNull() ?: parsed.imageKey
+
     emit(ExtractionProgress.Analyzing("Generating AI categories & semantic tags...", 0.55f))
-    delay(320)
-    val categories = categoryGenerator.generateCategories(parsed.title, parsed.store, url)
-    val tags = tagGenerator.generateTags(parsed.title, categories, parsed.store)
+    delay(280)
+    val categories = categoryGenerator.generateCategories(finalTitle, parsed.store, cleanUrl)
+    val tags = tagGenerator.generateTags(finalTitle, categories, parsed.store)
     emit(ExtractionProgress.Analyzing("Detecting gift recipient & comparing stores...", 0.85f))
-    delay(300)
+    delay(280)
     val recipients = giftRepository.observeRecipients().first()
-    val prediction = recipientDetector.detectRecipient(parsed.title, categories, tags, recipients)
+    val prediction = recipientDetector.detectRecipient(finalTitle, categories, tags, recipients)
     val alternatives =
       alternativeRecommender.recommendAlternatives(
-        parsed.title,
+        finalTitle,
         categories.firstOrNull() ?: "Gift",
-        parsed.priceHuf,
+        finalPrice,
       )
+
+    val additionalImages = (listOf(finalMainImage) + extractedImages).distinct()
+
     emit(
       ExtractionProgress.Completed(
         ExtractedProductDraft(
-          title = parsed.title,
-          imageKey = parsed.imageKey,
+          title = finalTitle,
+          imageKey = finalMainImage,
           store = parsed.store,
-          priceHuf = parsed.priceHuf,
-          originalPriceHuf = (parsed.priceHuf * 1.12).roundToInt(),
-          sourceUrl = url.trim(),
+          priceHuf = finalPrice,
+          originalPriceHuf = (finalPrice * 1.12).roundToInt(),
+          sourceUrl = cleanUrl,
           categories = categories,
           tags = tags,
           recipientPrediction = prediction,
           alternatives = alternatives,
-          storeOffers = buildOffers(parsed.store, parsed.priceHuf),
+          storeOffers = buildOffers(parsed.store, finalPrice),
+          additionalImages = additionalImages,
         )
       )
     )
@@ -390,28 +535,37 @@ constructor(
       else -> {
         val host =
           runCatching {
-              URI(if (rawUrl.startsWith("http")) rawUrl else "https://$rawUrl").host ?: "alza.hu"
+              URI(if (rawUrl.startsWith("http")) rawUrl else "https://$rawUrl").host ?: "mediamarkt.hu"
             }
-            .getOrDefault("alza.hu")
+            .getOrDefault("mediamarkt.hu")
             .removePrefix("www.")
         val storeLabel =
-          host.substringBefore('.').replaceFirstChar { it.uppercaseChar() }.ifBlank { "Alza" }
-        val slug =
-          rawUrl
-            .substringAfterLast('/')
-            .substringBefore('?')
-            .replace('-', ' ')
-            .replace('_', ' ')
-            .trim()
-        val prettyTitle =
-          if (slug.length >= 3 && !slug.contains('.')) {
-            slug.split(' ').joinToString(" ") { part ->
-              part.replaceFirstChar { it.uppercaseChar() }
-            }
-          } else {
-            "Pixel Ecosystem Smart Accessory"
-          }
-        ParsedSeed(prettyTitle, storeLabel, 29_990, resolveArtworkKey(prettyTitle))
+          host.substringBefore('.').replaceFirstChar { it.uppercaseChar() }.ifBlank { "MediaMarkt" }
+
+        val cleanPath = rawUrl
+          .substringBefore('?')
+          .removeSuffix(".html")
+          .removeSuffix(".htm")
+          .removeSuffix(".php")
+          .removeSuffix(".aspx")
+        val rawSlug = cleanPath.substringAfterLast('/').removePrefix("_").removePrefix("-")
+        val slugWithoutId = rawSlug.replace(Regex("""-\d+$"""), "")
+
+        val prettyTitle = slugWithoutId
+          .split('-', '_', ' ')
+          .filter { it.isNotBlank() }
+          .joinToString(" ") { part -> part.replaceFirstChar { it.uppercaseChar() } }
+          .ifBlank { "Termék A Weboldalról" }
+
+        val lowerTitle = prettyTitle.lowercase()
+        val defaultPrice = when {
+          lowerTitle.contains("szaritogep") || lowerTitle.contains("mosogep") || lowerTitle.contains("bosch") -> 219_990
+          lowerTitle.contains("tv") || lowerTitle.contains("televizio") -> 189_990
+          lowerTitle.contains("nadrag") || lowerTitle.contains("chino") || lowerTitle.contains("sapka") || lowerTitle.contains("ing") -> 19_990
+          else -> 24_990
+        }
+
+        ParsedSeed(prettyTitle, storeLabel, defaultPrice, resolveArtworkKey(prettyTitle))
       }
     }
   }
@@ -438,7 +592,7 @@ constructor(
       lower.contains("stand") || lower.contains("dock") -> "pixel_stand"
       lower.contains("coffee") || lower.contains("kettle") -> "coffee_kettle"
       lower.contains("book") -> "art_book"
-      else -> "pixel_buds"
+      else -> "art_book"
     }
   }
 

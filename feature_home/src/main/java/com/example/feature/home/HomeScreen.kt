@@ -698,7 +698,7 @@ private fun HomeScreenPreview() {
     HomeScreen(
       uiState =
         HomeUiState.Success(
-          userDisplayName = "Attila Kovács",
+          userDisplayName = "Saját profil",
           summary =
             DashboardSummary(
               activeWishesCount = 17,

@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -167,35 +168,55 @@ internal fun VisibilitySelectorCard(
 internal fun CollaboratorMemberCard(
   member: SharedListMember,
   onClick: () -> Unit,
+  onRemove: (() -> Unit)? = null,
 ) {
   PixelBentoCard(
     onClick = onClick,
     shape = WishDropDesign.radii.medium,
     modifier =
-      Modifier.width(196.dp)
+      Modifier.width(210.dp)
         .minimumInteractiveComponentSize()
         .testTag("shared_member_${member.memberId}"),
   ) {
     Row(
-      modifier = Modifier.padding(14.dp),
+      modifier = Modifier.padding(12.dp),
       verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-      PersonAvatarBadge(name = member.memberName, accentKey = member.accentKey, size = 42.dp)
-      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-          text = member.memberName,
-          style = MaterialTheme.typography.titleSmall,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-          text = member.role.label,
-          style = MaterialTheme.typography.labelSmall,
-          color = MaterialTheme.colorScheme.primary,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis,
-        )
+      Row(
+        modifier = Modifier.weight(1f),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+      ) {
+        PersonAvatarBadge(name = member.memberName, accentKey = member.accentKey, size = 42.dp)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+          Text(
+            text = member.memberName,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+          Text(
+            text = member.role.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+      }
+      if (onRemove != null) {
+        IconButton(
+          onClick = onRemove,
+          modifier = Modifier.size(28.dp).testTag("shared_delete_member_${member.memberId}"),
+        ) {
+          Icon(
+            imageVector = WishDropIcons.Delete,
+            contentDescription = "Remove member",
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(18.dp),
+          )
+        }
       }
     }
   }
@@ -444,6 +465,7 @@ internal fun MemberRolePickerDialog(
   member: SharedListMember,
   onDismiss: () -> Unit,
   onSelectRole: (ListMemberRole) -> Unit,
+  onRemoveMember: () -> Unit = {},
 ) {
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -470,6 +492,21 @@ internal fun MemberRolePickerDialog(
               modifier = Modifier.padding(14.dp),
             )
           }
+        }
+        TextButton(
+          onClick = {
+            onRemoveMember()
+            onDismiss()
+          },
+          modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) {
+          Icon(
+            imageVector = WishDropIcons.Delete,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text("Tag eltávolítása a listáról", color = MaterialTheme.colorScheme.error)
         }
       }
     },

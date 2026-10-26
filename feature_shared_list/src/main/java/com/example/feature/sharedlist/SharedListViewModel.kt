@@ -104,11 +104,42 @@ constructor(
     }
   }
 
+  fun updateListDetails(
+    title: String,
+    emoji: String,
+    subtitle: String,
+    visibility: ListVisibility,
+    hiddenFromMemberId: String?,
+  ) {
+    val listId = listIdFlow.value ?: return
+    viewModelScope.launch {
+      manageSharedList.updateListDetails(listId, title, emoji, subtitle, visibility, hiddenFromMemberId)
+      statusMessageFlow.value = "Updated list details"
+    }
+  }
+
+  fun deleteList(onDeleted: () -> Unit) {
+    val listId = listIdFlow.value ?: return
+    viewModelScope.launch {
+      manageSharedList.deleteList(listId)
+      statusMessageFlow.value = "Shared list deleted"
+      onDeleted()
+    }
+  }
+
   fun updateMemberRole(memberId: String, role: ListMemberRole) {
     val listId = listIdFlow.value ?: return
     viewModelScope.launch {
       manageSharedList.updateMemberRole(listId, memberId, role)
       statusMessageFlow.value = "Updated collaborator role to ${role.label}"
+    }
+  }
+
+  fun removeMember(memberId: String) {
+    val listId = listIdFlow.value ?: return
+    viewModelScope.launch {
+      manageSharedList.removeMember(listId, memberId)
+      statusMessageFlow.value = "Tag eltávolítva a listáról"
     }
   }
 

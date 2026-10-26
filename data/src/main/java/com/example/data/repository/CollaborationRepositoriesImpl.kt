@@ -260,6 +260,41 @@ constructor(
     return listId
   }
 
+  override suspend fun updateSharedList(
+    listId: String,
+    title: String,
+    emoji: String,
+    subtitle: String,
+    visibility: ListVisibility,
+    hiddenFromMemberId: String?,
+  ) {
+    val resolvedHiddenId =
+      if (visibility == ListVisibility.HIDDEN) hiddenFromMemberId ?: "rec_dalma"
+      else hiddenFromMemberId
+    val hiddenRecipient = resolvedHiddenId?.let { recipientDao.getRecipientById(it) }
+    val now = System.currentTimeMillis()
+    sharedListDao.updateSharedListDetails(
+      listId = listId,
+      title = title.trim().ifBlank { "Shared Wishlist" },
+      emoji = emoji.trim().ifBlank { "🎁" },
+      subtitle = subtitle.trim().ifBlank { "Collaborative family wishlist" },
+      visibility = visibility.name,
+      hiddenFromMemberId = hiddenRecipient?.id,
+      hiddenFromMemberName = hiddenRecipient?.name,
+      updatedAtMillis = now,
+    )
+    productDao.updateHiddenRecipientForListProducts(
+      sharedListId = listId,
+      hiddenFromMemberId = hiddenRecipient?.id,
+    )
+  }
+
+  override suspend fun deleteSharedList(listId: String) {
+    sharedListDao.deleteSharedList(listId)
+    sharedListDao.deleteListMembers(listId)
+    productDao.clearSharedListFromProducts(listId)
+  }
+
   override suspend fun updateListVisibility(
     listId: String,
     visibility: ListVisibility,
@@ -327,6 +362,11 @@ constructor(
       )
     )
     remoteDataSource.notifyLocalMutation("list_members", "UPDATE")
+  }
+
+  override suspend fun removeMember(listId: String, memberId: String) {
+    sharedListDao.removeListMember(listId = listId, memberId = memberId)
+    remoteDataSource.notifyLocalMutation("list_members", "DELETE")
   }
 
   override suspend fun addProductIdeaToList(
@@ -604,14 +644,7 @@ constructor(
       members.map {
         FamilyPersona(
           memberId = it.id,
-          displayName =
-            when (it.id) {
-              "rec_attila" -> "Attila Kovács"
-              "rec_dalma" -> "Dalma Szabó"
-              "rec_olivia" -> "Olívia Kovács"
-              "rec_armin" -> "Ármin Kovács"
-              else -> it.name
-            },
+          displayName = it.name,
           email = it.email,
           relationship = it.relationship,
           accentKey = it.accentKey,
@@ -686,18 +719,14 @@ constructor(
   override suspend fun switchActivePersona(memberId: String) {
     initializer.ensureSeeded()
     val member = userAndFamilyDao.getFamilyMemberById(memberId) ?: return
-    val fullName =
-      when (member.id) {
-        "rec_attila" -> "Attila Kovács"
-        "rec_dalma" -> "Dalma Szabó"
-        "rec_olivia" -> "Olívia Kovács"
-        "rec_armin" -> "Ármin Kovács"
-        else -> member.name
-      }
     preferencesRepository.switchActiveFamilyMember(
       memberId = member.id,
-      displayName = fullName,
+      displayName = member.name,
       email = member.email,
     )
+  }
+
+  override suspend fun deleteFamilyMember(memberId: String) {
+    userAndFamilyDao.deleteFamilyMember(memberId)
   }
 }

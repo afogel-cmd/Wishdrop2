@@ -18,18 +18,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.example.domain.model.GiftRecipient
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -97,7 +106,10 @@ fun SharedListRouteScreen(
       onRetry = viewModel::retry,
       onOpenProductDetails = onOpenProductDetails,
       onUpdateVisibility = viewModel::updateVisibility,
+      onUpdateListDetails = viewModel::updateListDetails,
+      onDeleteList = { viewModel.deleteList { onNavigateBack() } },
       onUpdateMemberRole = viewModel::updateMemberRole,
+      onRemoveMember = viewModel::removeMember,
       onSendInvitation = viewModel::sendInvitation,
       onAcceptInvitation = viewModel::acceptInvitation,
       onAddQuickProduct = viewModel::addQuickProduct,
@@ -114,14 +126,19 @@ fun SharedListScreenContent(
   onOpenProductDetails: (String) -> Unit,
   onUpdateVisibility: (ListVisibility, String?) -> Unit,
   onUpdateMemberRole: (String, ListMemberRole) -> Unit,
+  onRemoveMember: (String) -> Unit = {},
   onSendInvitation: (String, ListMemberRole) -> Unit,
   onAcceptInvitation: (String) -> Unit,
   onAddQuickProduct: (String, String, Int) -> Unit,
   modifier: Modifier = Modifier,
+  onUpdateListDetails: (String, String, String, ListVisibility, String?) -> Unit = { _, _, _, _, _ -> },
+  onDeleteList: () -> Unit = {},
 ) {
   val spacing = WishDropDesign.spacing
   var showInviteDialog by rememberSaveable { mutableStateOf(false) }
   var showQuickAddDialog by rememberSaveable { mutableStateOf(false) }
+  var showEditListDialog by rememberSaveable { mutableStateOf(false) }
+  var showDeleteListDialog by rememberSaveable { mutableStateOf(false) }
   var editingMember by remember { mutableStateOf<SharedListMember?>(null) }
 
   when (state) {
@@ -214,6 +231,25 @@ fun SharedListScreenContent(
                   Text(stringResource(R.string.shared_list_invite))
                 }
                 if (details.canEdit) {
+                  OutlinedIconButton(
+                    onClick = { showEditListDialog = true },
+                    modifier = Modifier.testTag("shared_list_edit_button"),
+                  ) {
+                    Icon(
+                      imageVector = WishDropIcons.Edit,
+                      contentDescription = "Edit list",
+                    )
+                  }
+                  OutlinedIconButton(
+                    onClick = { showDeleteListDialog = true },
+                    modifier = Modifier.testTag("shared_list_delete_button"),
+                  ) {
+                    Icon(
+                      imageVector = WishDropIcons.Delete,
+                      contentDescription = "Delete list",
+                      tint = MaterialTheme.colorScheme.error,
+                    )
+                  }
                   Button(
                     onClick = { showQuickAddDialog = true },
                     modifier =
@@ -339,6 +375,7 @@ fun SharedListScreenContent(
                   CollaboratorMemberCard(
                     member = member,
                     onClick = { if (details.canEdit) editingMember = member },
+                    onRemove = if (details.canEdit) { { onRemoveMember(member.memberId) } } else null,
                   )
                 }
               }
@@ -431,8 +468,149 @@ fun SharedListScreenContent(
       member = member,
       onDismiss = { editingMember = null },
       onSelectRole = { role -> onUpdateMemberRole(member.memberId, role) },
+      onRemoveMember = { onRemoveMember(member.memberId) },
     )
   }
+
+  if (showEditListDialog && state is SharedListUiState.Success) {
+    EditSharedListDialog(
+      summary = state.details.summary,
+      recipients = state.familyRecipients,
+      onDismiss = { showEditListDialog = false },
+      onSave = { title, emoji, subtitle, vis, hiddenId ->
+        onUpdateListDetails(title, emoji, subtitle, vis, hiddenId)
+        showEditListDialog = false
+      },
+    )
+  }
+
+  if (showDeleteListDialog && state is SharedListUiState.Success) {
+    AlertDialog(
+      onDismissRequest = { showDeleteListDialog = false },
+      title = { Text("Lista törlése") },
+      text = { Text("Biztosan törölni szeretnéd a \"${state.details.summary.title}\" listát?") },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showDeleteListDialog = false
+            onDeleteList()
+          }
+        ) {
+          Text("Törlés", color = MaterialTheme.colorScheme.error)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDeleteListDialog = false }) {
+          Text(stringResource(R.string.action_cancel))
+        }
+      },
+    )
+  }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EditSharedListDialog(
+  summary: SharedListSummary,
+  recipients: List<GiftRecipient>,
+  onDismiss: () -> Unit,
+  onSave: (title: String, emoji: String, subtitle: String, visibility: ListVisibility, hiddenFromMemberId: String?) -> Unit,
+) {
+  var title by rememberSaveable { mutableStateOf(summary.title) }
+  var emoji by rememberSaveable { mutableStateOf(summary.emoji) }
+  var subtitle by rememberSaveable { mutableStateOf(summary.subtitle) }
+  var secretMode by rememberSaveable {
+    mutableStateOf(summary.visibility == ListVisibility.HIDDEN || summary.hiddenFromMemberId != null)
+  }
+  var selectedHiddenId by rememberSaveable {
+    mutableStateOf(summary.hiddenFromMemberId ?: recipients.firstOrNull()?.id)
+  }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Lista szerkesztése") },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          OutlinedTextField(
+            value = emoji,
+            onValueChange = { emoji = it.take(4) },
+            label = { Text("Emoji") },
+            singleLine = true,
+            modifier = Modifier.width(88.dp).testTag("edit_list_emoji_input"),
+          )
+          OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Cím") },
+            singleLine = true,
+            modifier = Modifier.weight(1f).testTag("edit_list_title_input"),
+          )
+        }
+        OutlinedTextField(
+          value = subtitle,
+          onValueChange = { subtitle = it },
+          label = { Text("Alcím / Leírás") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth().testTag("edit_list_subtitle_input"),
+        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Text(
+            text = "Titkos lista mód",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+          )
+          Switch(
+            checked = secretMode,
+            onCheckedChange = { secretMode = it },
+            modifier = Modifier.testTag("edit_list_secret_switch"),
+          )
+        }
+        if (secretMode && recipients.isNotEmpty()) {
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+          ) {
+            recipients.forEach { recipient ->
+              FilterChip(
+                selected = selectedHiddenId == recipient.id,
+                onClick = { selectedHiddenId = recipient.id },
+                label = { Text(recipient.name) },
+              )
+            }
+          }
+        }
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          val vis = if (secretMode) ListVisibility.HIDDEN else ListVisibility.SHARED
+          onSave(
+            title,
+            emoji,
+            subtitle,
+            vis,
+            if (secretMode) selectedHiddenId else null,
+          )
+          onDismiss()
+        },
+        enabled = title.isNotBlank(),
+        modifier = Modifier.testTag("edit_list_confirm_button"),
+      ) {
+        Text(stringResource(R.string.action_save))
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(R.string.action_cancel))
+      }
+    },
+  )
 }
 
 @Preview(showBackground = true, name = "Shared List — Light")

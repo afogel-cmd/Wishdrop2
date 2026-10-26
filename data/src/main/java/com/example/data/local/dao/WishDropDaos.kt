@@ -83,6 +83,12 @@ interface ProductDao {
     hiddenFromMemberId: String?,
   )
 
+  @Query("UPDATE products SET recipientId = NULL, recipientName = NULL WHERE recipientId = :recipientId")
+  suspend fun clearRecipientFromProducts(recipientId: String)
+
+  @Query("UPDATE products SET sharedListId = NULL WHERE sharedListId = :listId")
+  suspend fun clearSharedListFromProducts(listId: String)
+
   @Query("DELETE FROM products")
   suspend fun clearAll()
 }
@@ -130,6 +136,27 @@ interface SharedListDao {
     hiddenFromMemberName: String?,
     updatedAtMillis: Long,
   )
+
+  @Query("UPDATE shared_lists SET title = :title, emoji = :emoji, subtitle = :subtitle, visibility = :visibility, hiddenFromMemberId = :hiddenFromMemberId, hiddenFromMemberName = :hiddenFromMemberName, updatedAtMillis = :updatedAtMillis WHERE id = :listId")
+  suspend fun updateSharedListDetails(
+    listId: String,
+    title: String,
+    emoji: String,
+    subtitle: String,
+    visibility: String,
+    hiddenFromMemberId: String?,
+    hiddenFromMemberName: String?,
+    updatedAtMillis: Long,
+  )
+
+  @Query("DELETE FROM shared_lists WHERE id = :listId")
+  suspend fun deleteSharedList(listId: String)
+
+  @Query("DELETE FROM list_members WHERE listId = :listId")
+  suspend fun deleteListMembers(listId: String)
+
+  @Query("DELETE FROM list_members WHERE listId = :listId AND memberId = :memberId")
+  suspend fun removeListMember(listId: String, memberId: String)
 
   @Query("UPDATE list_members SET role = :role WHERE listId = :listId AND memberId = :memberId")
   suspend fun updateMemberRole(listId: String, memberId: String, role: String)
@@ -230,6 +257,9 @@ interface UserAndFamilyDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertFamilyMember(member: FamilyMemberEntity)
 
+  @Query("DELETE FROM family_members WHERE id = :memberId")
+  suspend fun deleteFamilyMember(memberId: String)
+
   @Query("DELETE FROM family_members")
   suspend fun clearFamilyMembers()
 
@@ -296,6 +326,19 @@ interface GiftRecipientDao {
   @Query("UPDATE gift_recipients SET interestsJson = :interestsJson WHERE id = :recipientId")
   suspend fun updateInterests(recipientId: String, interestsJson: String)
 
+  @Query("UPDATE gift_recipients SET name = :name, relationship = :relationship, upcomingEventName = :eventName, daysUntilEvent = :daysUntilEvent, interestsJson = :interestsJson WHERE id = :recipientId")
+  suspend fun updateRecipientDetails(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interestsJson: String,
+  )
+
+  @Query("DELETE FROM gift_recipients WHERE id = :recipientId")
+  suspend fun deleteRecipient(recipientId: String)
+
   @Query("DELETE FROM gift_recipients")
   suspend fun clearAll()
 }
@@ -340,6 +383,12 @@ interface RecommendationDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertRecommendation(item: RecommendationEntity)
+
+  @Query("DELETE FROM recommendations WHERE id = :id")
+  suspend fun deleteRecommendation(id: String)
+
+  @Query("DELETE FROM recommendations WHERE recipientId = :recipientId")
+  suspend fun deleteRecommendationsForRecipient(recipientId: String)
 
   @Query("DELETE FROM recommendations")
   suspend fun clearAll()

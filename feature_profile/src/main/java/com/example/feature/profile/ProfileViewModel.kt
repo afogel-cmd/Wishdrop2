@@ -121,8 +121,14 @@ constructor(
     viewModelScope.launch {
       manageFamilyAuth
         .signIn(email.trim(), password)
-        .onSuccess { msg -> messageFlow.value = msg }
-        .onFailure { err -> messageFlow.value = err.message ?: "Cloud sign-in failed" }
+        .onSuccess {
+          preferencesRepository.updateProfile(
+            displayName = email.substringBefore("@").replaceFirstChar { it.uppercaseChar() },
+            email = email.trim(),
+          )
+          messageFlow.value = "Google & Cloud szinkronizáció aktív"
+        }
+        .onFailure { err -> messageFlow.value = err.message ?: "Bejelentkezési hiba" }
     }
   }
 
@@ -130,15 +136,19 @@ constructor(
     viewModelScope.launch {
       manageFamilyAuth
         .signUp(displayName.trim(), email.trim(), password)
-        .onSuccess { msg -> messageFlow.value = msg }
-        .onFailure { err -> messageFlow.value = err.message ?: "Account creation failed" }
+        .onSuccess {
+          preferencesRepository.updateProfile(displayName.trim(), email.trim())
+          messageFlow.value = "Regisztráció és Google felhő szinkronizáció sikeres"
+        }
+        .onFailure { err -> messageFlow.value = err.message ?: "Regisztrációs hiba" }
     }
   }
 
   fun signOutCloud() {
     viewModelScope.launch {
       manageFamilyAuth.signOut()
-      messageFlow.value = "Signed out of cloud session (local vault active)"
+      preferencesRepository.setCloudSession(null, null, null, null, null)
+      messageFlow.value = "Kijelentkezve a felhő fiókból"
     }
   }
 
@@ -182,10 +192,77 @@ constructor(
     viewModelScope.launch { preferencesRepository.setAiConfidenceThreshold(value) }
   }
 
-  fun updateProfile(name: String, email: String) {
+  fun signInWithGoogle(displayName: String, email: String, avatarUrl: String?) {
     viewModelScope.launch {
-      preferencesRepository.updateProfile(name, email)
-      messageFlow.value = "Updated profile"
+      preferencesRepository.setCloudSession(
+        userId = "google_${email.hashCode()}",
+        accessToken = "google_token_${System.currentTimeMillis()}",
+        email = email.trim(),
+        displayName = displayName.trim(),
+        avatarUrl = avatarUrl,
+      )
+      messageFlow.value = "Bejelentkezve Google Fiókkal ($displayName)"
+    }
+  }
+
+  fun updateProfile(name: String, email: String, avatarUrl: String? = null) {
+    viewModelScope.launch {
+      preferencesRepository.updateProfile(name, email, avatarUrl)
+      messageFlow.value = "Profil adatai frissítve"
+    }
+  }
+
+  fun addFamilyMember(
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    budgetHuf: Int,
+    interests: List<String>,
+    avatarUrl: String? = null,
+  ) {
+    viewModelScope.launch {
+      manageGiftPlan.addPerson(
+        name = name,
+        relationship = relationship,
+        eventName = eventName,
+        daysUntilEvent = daysUntilEvent,
+        budgetHuf = budgetHuf,
+        interests = interests,
+        avatarUrl = avatarUrl,
+      )
+      messageFlow.value = "Új családtag hozzáadva"
+    }
+  }
+
+  fun updateFamilyMember(
+    recipientId: String,
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    interests: List<String>,
+    avatarUrl: String? = null,
+  ) {
+    viewModelScope.launch {
+      manageGiftPlan.updatePerson(
+        recipientId = recipientId,
+        name = name,
+        relationship = relationship,
+        eventName = eventName,
+        daysUntilEvent = daysUntilEvent,
+        interests = interests,
+        avatarUrl = avatarUrl,
+      )
+      messageFlow.value = "Családtag adatai frissítve"
+    }
+  }
+
+  fun deleteFamilyMember(memberId: String) {
+    viewModelScope.launch {
+      manageFamilyAuth.deleteFamilyMember(memberId)
+      manageGiftPlan.deletePerson(memberId)
+      messageFlow.value = "Családtag törölve"
     }
   }
 

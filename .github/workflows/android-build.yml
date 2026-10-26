@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Kézzel is indítható az Actions fülön
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,25 +21,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Prepare .env and local.properties
         run: |
           if [ -f .env.example ] && [ ! -f .env ]; then
             cp .env.example .env
           fi
-          touch local.properties
-          # Ha a build.gradle.kts a local.properties-ből vagy .env-ből olvas kulcsokat, 
-          # a GitHub Settings -> Secrets and variables -> Actions alatt felveheted őket:
-          # echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> local.properties
-          # echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          # Ha a gradle/wrapper/gradle-wrapper.properties nem létezik a gradle mappán belül,
-          # ez a verzió akkor is lefut:
           gradle-version: '8.9'
 
       - name: Build Debug APK
@@ -50,4 +44,4 @@ jobs:
         with:
           name: Wishdrop2-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-        
+          

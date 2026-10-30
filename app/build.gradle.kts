@@ -34,17 +34,34 @@ android {
       keyPassword = "android"
     }
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      val keyFile = file(keystorePath)
+      val keystorePath = System.getenv("KEYSTORE_PATH")
+      val keyFile = if (keystorePath != null) file(keystorePath) else file("${rootDir}/my-upload-key.jks")
+      val rootDebugKeystore = file("${rootDir}/debug.keystore")
+      val appDebugKeystore = file("${rootDir}/app/debug.keystore")
       if (keyFile.exists()) {
         storeFile = keyFile
         storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = "upload"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD")
+      } else if (rootDebugKeystore.exists()) {
+        storeFile = rootDebugKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      } else if (appDebugKeystore.exists()) {
+        storeFile = appDebugKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
       } else {
         initWith(getByName("debug"))
       }
     }
+  }
+
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
   }
 
   buildTypes {

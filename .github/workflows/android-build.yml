@@ -40,13 +40,14 @@ jobs:
           # Biztonság kedvéért bemásoljuk az app mappába is, ha relatíve onnan keresné:
           cp debug.keystore app/debug.keystore
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
 
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

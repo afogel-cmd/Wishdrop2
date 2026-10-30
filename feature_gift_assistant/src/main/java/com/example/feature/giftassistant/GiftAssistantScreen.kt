@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,12 +31,14 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
+import com.example.core.format.EventDateUtils
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,7 +57,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -398,40 +404,62 @@ private fun GiftAssistantSuccessContent(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-              Row(
+              Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
               ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                  modifier = Modifier.fillMaxWidth(),
+                  verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                   Text(
                     text = stringResource(R.string.gift_ai_recommendations_title),
                     style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                   )
                   Text(
                     text = stringResource(R.string.gift_ai_recommendations_sub, recipient.name),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                   OutlinedButton(
                     onClick = { showDeepAnalysisDialog = true },
-                    modifier = Modifier.minimumInteractiveComponentSize(),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                   ) {
                     Icon(
                       imageVector = WishDropIcons.Sparkle,
                       contentDescription = null,
                       modifier = Modifier.size(16.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Mélyebb Analízis")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                      text = "Mélyebb Analízis",
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis,
+                    )
                   }
                   FilledTonalButton(
                     onClick = onGenerateAiRecommendations,
-                    modifier = Modifier.minimumInteractiveComponentSize(),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                   ) {
-                    Text("Újra-generálás")
+                    Icon(
+                      imageVector = WishDropIcons.Refresh,
+                      contentDescription = null,
+                      modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                      text = "Újra-generálás",
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis,
+                    )
                   }
                 }
               }
@@ -547,262 +575,327 @@ private fun GiftAssistantSuccessContent(
   }
 }
 
-private fun calculateDaysUntilRecurringEvent(targetDateMillis: Long): Int {
-  val calendarToday = java.util.Calendar.getInstance().apply {
-    set(java.util.Calendar.HOUR_OF_DAY, 0)
-    set(java.util.Calendar.MINUTE, 0)
-    set(java.util.Calendar.SECOND, 0)
-    set(java.util.Calendar.MILLISECOND, 0)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun PersonFormDialog(
+  dialogTitle: String,
+  initialName: String = "",
+  initialRelation: String = "Partner",
+  initialEventName: String = "Születésnap",
+  initialDaysUntilEvent: Int = 30,
+  initialInterests: List<String> = emptyList(),
+  nameTestTag: String = "",
+  onDismiss: () -> Unit,
+  onConfirm: (String, String, String, Int, String) -> Unit,
+) {
+  var name by rememberSaveable { mutableStateOf(initialName) }
+  var relationship by rememberSaveable { mutableStateOf(initialRelation) }
+
+  val eventTypes = listOf("Születésnap", "Évforduló", "Karácsony", "Névnap", "Egyéb")
+  var selectedEventType by rememberSaveable {
+    mutableStateOf(
+      when {
+        initialEventName.contains("szüli", ignoreCase = true) || initialEventName.contains("születés", ignoreCase = true) || initialEventName.contains("birthday", ignoreCase = true) -> "Születésnap"
+        initialEventName.contains("évforduló", ignoreCase = true) || initialEventName.contains("anniversary", ignoreCase = true) -> "Évforduló"
+        initialEventName.contains("karácsony", ignoreCase = true) || initialEventName.contains("christmas", ignoreCase = true) -> "Karácsony"
+        initialEventName.contains("névnap", ignoreCase = true) || initialEventName.contains("nameday", ignoreCase = true) -> "Névnap"
+        else -> if (initialEventName.isNotBlank() && initialEventName != "Születésnap") "Egyéb" else "Születésnap"
+      }
+    )
   }
-  val calendarTarget = java.util.Calendar.getInstance().apply {
-    timeInMillis = targetDateMillis
+  var customEventName by rememberSaveable {
+    mutableStateOf(if (selectedEventType == "Egyéb") initialEventName else "")
   }
 
-  val todayYear = calendarToday.get(java.util.Calendar.YEAR)
-  val targetMonth = calendarTarget.get(java.util.Calendar.MONTH)
-  val targetDay = calendarTarget.get(java.util.Calendar.DAY_OF_MONTH)
-
-  val nextOccurrence = java.util.Calendar.getInstance().apply {
-    set(java.util.Calendar.YEAR, todayYear)
-    set(java.util.Calendar.MONTH, targetMonth)
-    set(java.util.Calendar.DAY_OF_MONTH, targetDay)
-    set(java.util.Calendar.HOUR_OF_DAY, 0)
-    set(java.util.Calendar.MINUTE, 0)
-    set(java.util.Calendar.SECOND, 0)
-    set(java.util.Calendar.MILLISECOND, 0)
+  var showDatePicker by rememberSaveable { mutableStateOf(false) }
+  var selectedDateMillis by rememberSaveable {
+    mutableStateOf(System.currentTimeMillis() + initialDaysUntilEvent.toLong() * 86_400_000L)
   }
+  val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
 
-  if (nextOccurrence.before(calendarToday)) {
-    nextOccurrence.add(java.util.Calendar.YEAR, 1)
+  val calculatedDays = EventDateUtils.calculateDaysUntilRecurringEvent(selectedDateMillis)
+  val formattedDateStr = EventDateUtils.formatEventDate(selectedDateMillis)
+  val daysRemainingStr = EventDateUtils.formatDaysRemaining(calculatedDays)
+
+  var selectedInterests by rememberSaveable {
+    mutableStateOf(initialInterests.ifEmpty { listOf("Könyvek", "Kávé") })
   }
+  var customInterestInput by rememberSaveable { mutableStateOf("") }
 
-  val diffMillis = nextOccurrence.timeInMillis - calendarToday.timeInMillis
-  return (diffMillis / (1000L * 60 * 60 * 24)).coerceAtLeast(0L).toInt()
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = dialogTitle,
+        style = MaterialTheme.typography.titleLarge,
+      )
+    },
+    text = {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+      ) {
+        // Name
+        OutlinedTextField(
+          value = name,
+          onValueChange = { name = it },
+          label = { Text("Név *") },
+          placeholder = { Text("pl. Dalma, Attila, Ármin") },
+          singleLine = true,
+          modifier = Modifier
+            .fillMaxWidth()
+            .then(if (nameTestTag.isNotEmpty()) Modifier.testTag(nameTestTag) else Modifier),
+        )
+
+        // Relationship chips & custom
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text("Kapcsolat", style = MaterialTheme.typography.labelMedium)
+          val commonRelations = listOf("Partner", "Gyerek", "Szülő", "Testvér", "Barát", "Családtag")
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            commonRelations.forEach { rel ->
+              FilterChip(
+                selected = relationship.equals(rel, ignoreCase = true),
+                onClick = { relationship = rel },
+                label = { Text(rel) },
+              )
+            }
+          }
+          if (commonRelations.none { it.equals(relationship, ignoreCase = true) }) {
+            OutlinedTextField(
+              value = relationship,
+              onValueChange = { relationship = it },
+              label = { Text("Egyedi kapcsolat") },
+              singleLine = true,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
+        }
+
+        // Upcoming event selection (Születésnap / Évforduló / stb.)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text("Következő esemény / alkalom", style = MaterialTheme.typography.labelMedium)
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            eventTypes.forEach { type ->
+              FilterChip(
+                selected = selectedEventType == type,
+                onClick = {
+                  selectedEventType = type
+                  if (type == "Karácsony") {
+                    val cal = java.util.Calendar.getInstance()
+                    cal.set(java.util.Calendar.MONTH, java.util.Calendar.DECEMBER)
+                    cal.set(java.util.Calendar.DAY_OF_MONTH, 25)
+                    selectedDateMillis = cal.timeInMillis
+                  }
+                },
+                label = { Text(type) },
+              )
+            }
+          }
+          if (selectedEventType == "Egyéb") {
+            OutlinedTextField(
+              value = customEventName,
+              onValueChange = { customEventName = it },
+              label = { Text("Egyedi alkalom megnevezése") },
+              placeholder = { Text("pl. Diplomaosztó, Házavató") },
+              singleLine = true,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
+        }
+
+        // Event date button
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Text("Esemény dátuma", style = MaterialTheme.typography.labelMedium)
+          OutlinedButton(
+            onClick = { showDatePicker = true },
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Cake,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("$formattedDateStr ($daysRemainingStr)")
+          }
+        }
+
+        // Interactive interests management
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Text("Érdeklődési körök", style = MaterialTheme.typography.labelMedium)
+          if (selectedInterests.isNotEmpty()) {
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              selectedInterests.forEach { interest ->
+                FilterChip(
+                  selected = true,
+                  onClick = { selectedInterests = selectedInterests - interest },
+                  label = { Text(interest) },
+                  trailingIcon = {
+                    Icon(
+                      imageVector = WishDropIcons.Clear,
+                      contentDescription = "Törlés",
+                      modifier = Modifier.size(14.dp),
+                    )
+                  },
+                )
+              }
+            }
+          }
+
+          // Suggestion chips
+          Text(
+            "Gyors hozzáadás:",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            EventDateUtils.POPULAR_GIFT_INTERESTS
+              .filter { it !in selectedInterests }
+              .take(6)
+              .forEach { suggestion ->
+                FilterChip(
+                  selected = false,
+                  onClick = { selectedInterests = selectedInterests + suggestion },
+                  label = { Text("+ $suggestion") },
+                )
+              }
+          }
+
+          // Add custom interest input
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            OutlinedTextField(
+              value = customInterestInput,
+              onValueChange = { customInterestInput = it },
+              label = { Text("Egyedi hobbi") },
+              singleLine = true,
+              modifier = Modifier.weight(1f),
+            )
+            FilledTonalButton(
+              onClick = {
+                val trimmed = customInterestInput.trim()
+                if (trimmed.isNotEmpty() && trimmed !in selectedInterests) {
+                  selectedInterests = selectedInterests + trimmed
+                  customInterestInput = ""
+                }
+              },
+              enabled = customInterestInput.isNotBlank(),
+            ) {
+              Text("Hozzáad")
+            }
+          }
+        }
+      }
+    },
+    confirmButton = {
+      FilledTonalButton(
+        onClick = {
+          if (name.isNotBlank()) {
+            val finalEventName = when (selectedEventType) {
+              "Születésnap" -> "$name Születésnap"
+              "Évforduló" -> "Évforduló"
+              "Karácsony" -> "Karácsony"
+              "Névnap" -> "$name Névnap"
+              "Egyéb" -> customEventName.ifBlank { "Különleges alkalom" }
+              else -> selectedEventType
+            }
+            val interestsCsv = selectedInterests.joinToString(", ")
+            onConfirm(name.trim(), relationship.trim(), finalEventName, calculatedDays, interestsCsv)
+          }
+        },
+        enabled = name.isNotBlank(),
+      ) {
+        Text(stringResource(R.string.action_save))
+      }
+    },
+    dismissButton = {
+      TextButton(
+        onClick = onDismiss,
+        modifier = Modifier.minimumInteractiveComponentSize(),
+      ) {
+        Text(stringResource(R.string.action_cancel))
+      }
+    },
+  )
+
+  if (showDatePicker) {
+    DatePickerDialog(
+      onDismissRequest = { showDatePicker = false },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            datePickerState.selectedDateMillis?.let {
+              selectedDateMillis = it
+            }
+            showDatePicker = false
+          }
+        ) {
+          Text("OK")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDatePicker = false }) {
+          Text(stringResource(R.string.action_cancel))
+        }
+      }
+    ) {
+      DatePicker(state = datePickerState)
+    }
+  }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditPersonDialog(
   recipient: GiftRecipient,
   onDismiss: () -> Unit,
   onConfirm: (String, String, String, Int, String) -> Unit,
 ) {
-  var name by rememberSaveable { mutableStateOf(recipient.name) }
-  var relation by rememberSaveable { mutableStateOf(recipient.relationship) }
-  var event by rememberSaveable { mutableStateOf(recipient.upcomingEventName) }
-  var interests by rememberSaveable { mutableStateOf(recipient.interests.joinToString(", ")) }
-
-  var showDatePicker by rememberSaveable { mutableStateOf(false) }
-  var selectedMillis by rememberSaveable {
-    mutableStateOf(System.currentTimeMillis() + recipient.daysUntilEvent.toLong() * 86_400_000L)
-  }
-
-  val datePickerState = rememberDatePickerState(
-    initialSelectedDateMillis = selectedMillis
+  PersonFormDialog(
+    dialogTitle = "Személy / Családtag szerkesztése",
+    initialName = recipient.name,
+    initialRelation = recipient.relationship,
+    initialEventName = recipient.upcomingEventName,
+    initialDaysUntilEvent = recipient.daysUntilEvent,
+    initialInterests = recipient.interests,
+    nameTestTag = "gift_edit_person_name",
+    onDismiss = onDismiss,
+    onConfirm = onConfirm,
   )
-
-  val calculatedDays = calculateDaysUntilRecurringEvent(selectedMillis)
-  val formatter = java.text.SimpleDateFormat("yyyy.MM.dd", java.util.Locale.getDefault())
-  val formattedDateStr = formatter.format(java.util.Date(selectedMillis))
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("Személy / Születésnap szerkesztése") },
-    text = {
-      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-          value = name,
-          onValueChange = { name = it },
-          label = { Text(stringResource(R.string.dialog_person_name)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth().testTag("gift_edit_person_name"),
-        )
-        OutlinedTextField(
-          value = relation,
-          onValueChange = { relation = it },
-          label = { Text(stringResource(R.string.dialog_person_relation)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-          value = event,
-          onValueChange = { event = it },
-          label = { Text(stringResource(R.string.dialog_person_event)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedButton(
-          onClick = { showDatePicker = true },
-          modifier = Modifier.fillMaxWidth(),
-        ) {
-          Icon(
-            imageVector = WishDropIcons.Cake,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Esemény dátuma: $formattedDateStr ($calculatedDays nap múlva)")
-        }
-        OutlinedTextField(
-          value = interests,
-          onValueChange = { interests = it },
-          label = { Text(stringResource(R.string.dialog_person_interests)) },
-          modifier = Modifier.fillMaxWidth(),
-        )
-      }
-    },
-    confirmButton = {
-      TextButton(
-        onClick = {
-          if (name.isNotBlank()) {
-            onConfirm(name, relation, event, calculatedDays, interests)
-          }
-        }
-      ) {
-        Text(stringResource(R.string.action_save))
-      }
-    },
-    dismissButton = {
-      TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-    },
-  )
-
-  if (showDatePicker) {
-    DatePickerDialog(
-      onDismissRequest = { showDatePicker = false },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            datePickerState.selectedDateMillis?.let {
-              selectedMillis = it
-            }
-            showDatePicker = false
-          }
-        ) {
-          Text("OK")
-        }
-      },
-      dismissButton = {
-        TextButton(onClick = { showDatePicker = false }) {
-          Text(stringResource(R.string.action_cancel))
-        }
-      }
-    ) {
-      DatePicker(state = datePickerState)
-    }
-  }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddPersonDialog(
   onDismiss: () -> Unit,
   onConfirm: (String, String, String, Int, String) -> Unit,
 ) {
-  var name by rememberSaveable { mutableStateOf("") }
-  var relation by rememberSaveable { mutableStateOf("") }
-  var event by rememberSaveable { mutableStateOf("Birthday") }
-  var interests by rememberSaveable { mutableStateOf("Flowers, Books, Coffee") }
-
-  var showDatePicker by rememberSaveable { mutableStateOf(false) }
-  var selectedMillis by rememberSaveable {
-    mutableStateOf(System.currentTimeMillis() + 30L * 86_400_000L)
-  }
-
-  val datePickerState = rememberDatePickerState(
-    initialSelectedDateMillis = selectedMillis
+  PersonFormDialog(
+    dialogTitle = stringResource(R.string.dialog_add_person_title),
+    initialName = "",
+    initialRelation = "Partner",
+    initialEventName = "Születésnap",
+    initialDaysUntilEvent = 30,
+    initialInterests = listOf("Könyvek", "Kávé", "Virágok"),
+    nameTestTag = "gift_new_person_name",
+    onDismiss = onDismiss,
+    onConfirm = onConfirm,
   )
-
-  val calculatedDays = calculateDaysUntilRecurringEvent(selectedMillis)
-  val formatter = java.text.SimpleDateFormat("yyyy.MM.dd", java.util.Locale.getDefault())
-  val formattedDateStr = formatter.format(java.util.Date(selectedMillis))
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text(stringResource(R.string.dialog_add_person_title)) },
-    text = {
-      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-          value = name,
-          onValueChange = { name = it },
-          label = { Text(stringResource(R.string.dialog_person_name)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth().testTag("gift_new_person_name"),
-        )
-        OutlinedTextField(
-          value = relation,
-          onValueChange = { relation = it },
-          label = { Text(stringResource(R.string.dialog_person_relation)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-          value = event,
-          onValueChange = { event = it },
-          label = { Text(stringResource(R.string.dialog_person_event)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedButton(
-          onClick = { showDatePicker = true },
-          modifier = Modifier.fillMaxWidth(),
-        ) {
-          Icon(
-            imageVector = WishDropIcons.Cake,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Esemény dátuma: $formattedDateStr ($calculatedDays nap múlva)")
-        }
-        OutlinedTextField(
-          value = interests,
-          onValueChange = { interests = it },
-          label = { Text(stringResource(R.string.dialog_person_interests)) },
-          modifier = Modifier.fillMaxWidth(),
-        )
-      }
-    },
-    confirmButton = {
-      TextButton(
-        onClick = {
-          if (name.isNotBlank()) {
-            onConfirm(name, relation, event, calculatedDays, interests)
-          }
-        }
-      ) {
-        Text(stringResource(R.string.action_save))
-      }
-    },
-    dismissButton = {
-      TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-    },
-  )
-
-  if (showDatePicker) {
-    DatePickerDialog(
-      onDismissRequest = { showDatePicker = false },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            datePickerState.selectedDateMillis?.let {
-              selectedMillis = it
-            }
-            showDatePicker = false
-          }
-        ) {
-          Text("OK")
-        }
-      },
-      dismissButton = {
-        TextButton(onClick = { showDatePicker = false }) {
-          Text(stringResource(R.string.action_cancel))
-        }
-      }
-    ) {
-      DatePicker(state = datePickerState)
-    }
-  }
 }
 
 @Preview(showBackground = true, name = "Gift Assistant Light")

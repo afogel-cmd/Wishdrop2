@@ -450,6 +450,7 @@ constructor(
 class OfflineFirstCollaborationRepository
 @Inject
 constructor(
+  @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
   private val initializer: DatabaseInitializer,
   private val collaborationDao: CollaborationDao,
   private val sharedListDao: SharedListDao,
@@ -563,6 +564,37 @@ constructor(
           status = InvitationStatus.PENDING.name,
           createdAtMillis = now,
         )
+      val hasAppUser = userAndFamilyDao.getFamilyMemberByEmail(cleanEmail) != null ||
+        userAndFamilyDao.getUserByEmail(cleanEmail) != null ||
+        cleanEmail.contains("pixelmail", ignoreCase = true) ||
+        cleanEmail.equals(prefs.email, ignoreCase = true)
+
+      val isHu = prefs.appLanguage == com.example.core.preferences.AppLanguage.HUNGARIAN
+
+      if (hasAppUser) {
+        com.example.core.notification.WishDropNotificationManager.postInvitationNotification(
+          context = context,
+          inviterName = inviterName,
+          listTitle = "${list.emoji} ${list.title}",
+          role = proposedRole.label,
+          isHungarian = isHu,
+        )
+      }
+
+      val actionText = if (isHu) {
+        if (hasAppUser) {
+          "$inviterName meghívta $cleanEmail felhasználót (${proposedRole.label}) — Értesítés elküldve az alkalmazásban"
+        } else {
+          "$inviterName meghívta $cleanEmail felhasználót (${proposedRole.label}) — Értesítő email előkészítve"
+        }
+      } else {
+        if (hasAppUser) {
+          "$inviterName invited $cleanEmail as ${proposedRole.label} — In-app notification sent"
+        } else {
+          "$inviterName invited $cleanEmail as ${proposedRole.label} — External invite email prepared"
+        }
+      }
+
       collaborationDao.upsertInvitation(invitation)
       collaborationDao.insertActivityEvent(
         ActivityEventEntity(
@@ -572,7 +604,7 @@ constructor(
           actorMemberId = prefs.activeMemberId,
           actorName = inviterName,
           actorAccentKey = actor?.accentKey ?: "indigo",
-          actionSummary = "$inviterName invited $cleanEmail as ${proposedRole.label}",
+          actionSummary = actionText,
           eventType = "INVITE_SENT",
           createdAtMillis = now,
         )

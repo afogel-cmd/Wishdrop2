@@ -3,6 +3,7 @@ package com.example.feature.profile
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.core.preferences.AppLanguage
 import com.example.core.preferences.ThemeMode
 import com.example.core.preferences.UserPreferences
 import com.example.core.preferences.UserPreferencesRepository
@@ -166,6 +167,17 @@ constructor(
 
   fun setThemeMode(mode: ThemeMode) {
     viewModelScope.launch { preferencesRepository.setThemeMode(mode) }
+  }
+
+  fun setAppLanguage(language: AppLanguage) {
+    viewModelScope.launch {
+      preferencesRepository.setAppLanguage(language)
+      messageFlow.value = if (language == AppLanguage.HUNGARIAN) {
+        "Nyelv sikeresen átállítva: Magyar 🇭🇺"
+      } else {
+        "Language successfully set to: English 🇬🇧"
+      }
+    }
   }
 
   fun setDynamicColor(enabled: Boolean) {

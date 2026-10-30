@@ -215,7 +215,10 @@ fun SharedListScreenContent(
                 }
               }
 
-              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
                 FilledTonalButton(
                   onClick = { showInviteDialog = true },
                   modifier =
@@ -237,7 +240,7 @@ fun SharedListScreenContent(
                   ) {
                     Icon(
                       imageVector = WishDropIcons.Edit,
-                      contentDescription = "Edit list",
+                      contentDescription = stringResource(R.string.shared_list_edit_button),
                     )
                   }
                   OutlinedIconButton(
@@ -246,23 +249,9 @@ fun SharedListScreenContent(
                   ) {
                     Icon(
                       imageVector = WishDropIcons.Delete,
-                      contentDescription = "Delete list",
+                      contentDescription = stringResource(R.string.shared_list_delete_button),
                       tint = MaterialTheme.colorScheme.error,
                     )
-                  }
-                  Button(
-                    onClick = { showQuickAddDialog = true },
-                    modifier =
-                      Modifier.minimumInteractiveComponentSize()
-                        .testTag("shared_list_add_wish_button"),
-                  ) {
-                    Icon(
-                      imageVector = WishDropIcons.Add,
-                      contentDescription = null,
-                      modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.shared_list_add_idea))
                   }
                 }
               }
@@ -400,6 +389,8 @@ fun SharedListScreenContent(
             ExpressiveSectionHeader(
               title = stringResource(R.string.shared_list_products_title),
               subtitle = summary.eventDateLabel,
+              actionLabel = if (details.canEdit) stringResource(R.string.shared_list_add_idea) else null,
+              onActionClick = if (details.canEdit) { { showQuickAddDialog = true } } else null,
             )
           }
 
@@ -450,7 +441,11 @@ fun SharedListScreenContent(
   }
 
   if (showInviteDialog) {
+    val listTitle = (state as? SharedListUiState.Success)?.details?.summary?.title ?: "Közös lista"
+    val memberEmails = (state as? SharedListUiState.Success)?.details?.members?.map { it.memberEmail } ?: emptyList()
     InviteCollaboratorDialog(
+      listTitle = listTitle,
+      knownEmails = memberEmails,
       onDismiss = { showInviteDialog = false },
       onSend = onSendInvitation,
     )

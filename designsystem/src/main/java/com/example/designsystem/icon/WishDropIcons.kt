@@ -39,9 +39,11 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.LocalLaundryService
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Park
@@ -97,6 +99,7 @@ object WishDropIcons {
   val Delete: ImageVector = Icons.Filled.Delete
   val Edit: ImageVector = Icons.Filled.Edit
   val Add: ImageVector = Icons.Filled.Add
+  val MoreVert: ImageVector = Icons.Filled.MoreVert
   val Check: ImageVector = Icons.Filled.Check
   val CheckCircle: ImageVector = Icons.Filled.CheckCircle
   val Share: ImageVector = Icons.Filled.Share
@@ -145,6 +148,7 @@ object WishDropIcons {
   val EReader: ImageVector = Icons.Filled.AutoStories
   val Accessory: ImageVector = Icons.Filled.Mouse
   val Living: ImageVector = Icons.Filled.Weekend
+  val Washer: ImageVector = Icons.Filled.LocalLaundryService
 
   // Data & Vault
   val Export: ImageVector = Icons.Filled.FileUpload

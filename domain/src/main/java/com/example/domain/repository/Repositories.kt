@@ -42,6 +42,8 @@ interface ProductRepository {
 
   suspend fun setArchived(productId: String, archived: Boolean)
 
+  suspend fun deleteProduct(productId: String)
+
   suspend fun togglePriceAlert(productId: String)
 
   suspend fun assignRecipient(productId: String, recipientId: String?, confidence: Int = 100)

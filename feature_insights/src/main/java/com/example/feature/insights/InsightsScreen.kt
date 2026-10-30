@@ -467,6 +467,7 @@ private fun DonutCategoryChartCard(distribution: List<CategoryDistribution>) {
   }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RankedPriceDropItem(
   rank: Int,
@@ -502,23 +503,32 @@ private fun RankedPriceDropItem(
         shape = WishDropDesign.radii.small,
         modifier = Modifier.size(56.dp),
       )
-      Column(modifier = Modifier.weight(1f)) {
+      Column(
+        modifier = Modifier.weight(1f),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+      ) {
         Text(
           text = product.title,
           style = MaterialTheme.typography.titleMedium,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
         )
-        Text(
-          text = CurrencyFormatter.formatHuf(product.currentPriceHuf),
-          style = WishDropDesign.numericTypography.priceMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        FlowRow(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+          Text(
+            text = CurrencyFormatter.formatHuf(product.currentPriceHuf),
+            style = WishDropDesign.numericTypography.priceMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = false,
+          )
+          PriceDropBadge(
+            percentChange = product.priceChangePercent,
+            savingsHuf = product.savingsHuf,
+          )
+        }
       }
-      PriceDropBadge(
-        percentChange = product.priceChangePercent,
-        savingsHuf = product.savingsHuf,
-      )
     }
   }
 }

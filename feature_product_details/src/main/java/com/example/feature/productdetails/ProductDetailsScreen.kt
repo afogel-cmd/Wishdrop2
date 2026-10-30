@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -104,6 +105,9 @@ fun ProductDetailsRouteScreen(
     onAssignSharedList = viewModel::assignSharedList,
     onAddComment = viewModel::addComment,
     onAddProductPhoto = viewModel::addProductPhoto,
+    onDeleteProduct = {
+      viewModel.deleteProduct(onDeleted = onNavigateBack)
+    },
     onShareProduct = { product ->
       val sendIntent =
         Intent(Intent.ACTION_SEND).apply {
@@ -134,6 +138,7 @@ fun ProductDetailsScreenContent(
   onAssignSharedList: (String?) -> Unit = {},
   onAddComment: (String) -> Unit = {},
   onAddProductPhoto: (String) -> Unit = {},
+  onDeleteProduct: () -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
   var showRecipientPicker by rememberSaveable { mutableStateOf(false) }
@@ -263,6 +268,53 @@ fun ProductDetailsScreenContent(
                       )
                     }
                   }
+
+                  var showDeleteConfirmDialog by rememberSaveable { mutableStateOf(false) }
+
+                  if (showDeleteConfirmDialog) {
+                    AlertDialog(
+                      onDismissRequest = { showDeleteConfirmDialog = false },
+                      title = { Text("Termék törlése") },
+                      text = {
+                        Text("Biztosan törölni szeretnéd a(z) \"${product.title}\" terméket a listádról?")
+                      },
+                      confirmButton = {
+                        TextButton(
+                          onClick = {
+                            showDeleteConfirmDialog = false
+                            onDeleteProduct()
+                          },
+                          colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                          ),
+                        ) {
+                          Text("Törlés")
+                        }
+                      },
+                      dismissButton = {
+                        TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                          Text("Mégse")
+                        }
+                      },
+                    )
+                  }
+
+                  Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                  ) {
+                    IconButton(
+                      onClick = { showDeleteConfirmDialog = true },
+                      modifier =
+                        Modifier.minimumInteractiveComponentSize().testTag("details_delete_button"),
+                    ) {
+                      Icon(
+                        imageVector = WishDropIcons.Delete,
+                        contentDescription = "Termék törlése",
+                        tint = MaterialTheme.colorScheme.error,
+                      )
+                    }
+                  }
                 }
               }
             }
@@ -361,14 +413,13 @@ fun ProductDetailsScreenContent(
                 PixelBentoCard(
                   modifier = Modifier.fillMaxWidth().testTag("details_price_block"),
                 ) {
-                  Row(
+                  Column(
                     modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                   ) {
                     Column(
-                      modifier = Modifier.weight(1f),
-                      verticalArrangement = Arrangement.spacedBy(4.dp),
+                      modifier = Modifier.fillMaxWidth(),
+                      verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                       Text(
                         text = stringResource(R.string.details_current_price),
@@ -376,18 +427,20 @@ fun ProductDetailsScreenContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                       )
                       Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                       ) {
                         Text(
                           text = CurrencyFormatter.formatHuf(product.currentPriceHuf),
                           style = WishDropDesign.numericTypography.priceHero,
                           color = MaterialTheme.colorScheme.onSurface,
+                          maxLines = 1,
                         )
                         if (product.originalPriceHuf > product.currentPriceHuf) {
                           Text(
                             text = CurrencyFormatter.formatHuf(product.originalPriceHuf),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.titleMedium,
                             textDecoration = TextDecoration.LineThrough,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 6.dp),
@@ -400,20 +453,28 @@ fun ProductDetailsScreenContent(
                       )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
-
                     Button(
                       onClick = onTogglePurchased,
                       modifier =
-                        Modifier.minimumInteractiveComponentSize()
+                        Modifier.fillMaxWidth()
+                          .minimumInteractiveComponentSize()
                           .testTag("details_purchase_button"),
+                      colors =
+                        if (product.isPurchased) {
+                          ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                          )
+                        } else {
+                          ButtonDefaults.buttonColors()
+                        },
                     ) {
                       Icon(
                         imageVector = WishDropIcons.CheckCircle,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                       )
-                      Spacer(modifier = Modifier.width(6.dp))
+                      Spacer(modifier = Modifier.width(8.dp))
                       Text(
                         text =
                           stringResource(

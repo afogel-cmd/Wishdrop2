@@ -25,6 +25,11 @@ enum class ThemeMode {
   DARK,
 }
 
+enum class AppLanguage(val code: String, val displayName: String) {
+  HUNGARIAN("hu", "Magyar 🇭🇺"),
+  ENGLISH("en", "English 🇬🇧"),
+}
+
 data class UserPreferences(
   val activeMemberId: String = "rec_attila",
   val displayName: String = "Saját profil",
@@ -34,6 +39,7 @@ data class UserPreferences(
   val supabaseUserId: String? = null,
   val supabaseAccessToken: String? = null,
   val themeMode: ThemeMode = ThemeMode.SYSTEM,
+  val appLanguage: AppLanguage = AppLanguage.HUNGARIAN,
   val useDynamicColor: Boolean = true,
   val priceDropNotifications: Boolean = true,
   val eventReminders: Boolean = true,
@@ -48,6 +54,8 @@ interface UserPreferencesRepository {
 
   suspend fun setThemeMode(mode: ThemeMode)
 
+  suspend fun setAppLanguage(language: AppLanguage)
+
   suspend fun setUseDynamicColor(enabled: Boolean)
 
   suspend fun setPriceDropNotifications(enabled: Boolean)
@@ -61,6 +69,8 @@ interface UserPreferencesRepository {
   suspend fun setAiConfidenceThreshold(threshold: Float)
 
   suspend fun addDismissedRecommendation(id: String)
+
+  suspend fun addDismissedRecommendations(ids: Collection<String>)
 
   suspend fun updateProfile(displayName: String, email: String, avatarUrl: String? = null)
 
@@ -92,6 +102,7 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     val SUPABASE_USER_ID = stringPreferencesKey("supabase_user_id")
     val SUPABASE_ACCESS_TOKEN = stringPreferencesKey("supabase_access_token")
     val THEME_MODE = stringPreferencesKey("theme_mode")
+    val APP_LANGUAGE = stringPreferencesKey("app_language")
     val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     val PRICE_DROP_NOTIFICATIONS = booleanPreferencesKey("price_drop_notifications")
     val EVENT_REMINDERS = booleanPreferencesKey("event_reminders")
@@ -106,6 +117,9 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       val modeString = prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name
       val mode =
         runCatching { ThemeMode.valueOf(modeString) }.getOrDefault(ThemeMode.SYSTEM)
+      val langString = prefs[Keys.APP_LANGUAGE] ?: AppLanguage.HUNGARIAN.name
+      val lang =
+        runCatching { AppLanguage.valueOf(langString) }.getOrDefault(AppLanguage.HUNGARIAN)
       UserPreferences(
         activeMemberId = prefs[Keys.ACTIVE_MEMBER_ID] ?: "rec_attila",
         displayName = prefs[Keys.DISPLAY_NAME] ?: "Saját profil",
@@ -115,6 +129,7 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
         supabaseUserId = prefs[Keys.SUPABASE_USER_ID],
         supabaseAccessToken = prefs[Keys.SUPABASE_ACCESS_TOKEN],
         themeMode = mode,
+        appLanguage = lang,
         useDynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
         priceDropNotifications = prefs[Keys.PRICE_DROP_NOTIFICATIONS] ?: true,
         eventReminders = prefs[Keys.EVENT_REMINDERS] ?: true,
@@ -125,10 +140,20 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       )
     }
 
+  override suspend fun setAppLanguage(language: AppLanguage) {
+    dataStore.edit { it[Keys.APP_LANGUAGE] = language.name }
+  }
+
   override suspend fun addDismissedRecommendation(id: String) {
+    addDismissedRecommendations(listOf(id))
+  }
+
+  override suspend fun addDismissedRecommendations(ids: Collection<String>) {
+    val clean = ids.map { it.trim() }.filter { it.isNotEmpty() }
+    if (clean.isEmpty()) return
     dataStore.edit {
       val current = it[Keys.DISMISSED_RECOMMENDATION_IDS] ?: emptySet()
-      it[Keys.DISMISSED_RECOMMENDATION_IDS] = current + id
+      it[Keys.DISMISSED_RECOMMENDATION_IDS] = current + clean
     }
   }
 

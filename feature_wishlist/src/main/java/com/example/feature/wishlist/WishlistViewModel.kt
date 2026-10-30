@@ -151,10 +151,25 @@ constructor(
                   statusMatches && categoryOrTagMatches && collectionMatches && textMatches
                 }
 
+              val categoryFrequency = allProducts
+                .filter { !it.isArchived }
+                .flatMap { it.categories }
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .groupingBy { it }
+                .eachCount()
+
+              val sortedCategories = categoryFrequency.entries
+                .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                .map { it.key }
+
+              val dynamicFilterChips = (listOf("All") + sortedCategories + listOf("Purchased", "Archived")).distinct()
+
               WishlistUiState.Content(
                 searchQuery = query,
                 selectedFilter = chip,
                 activeCollectionQuery = collectionFilter,
+                filterChips = dynamicFilterChips,
                 smartCollections = catalogResult.data.smartCollections,
                 sharedLists = visibleLists,
                 filteredProducts = filtered,
@@ -218,6 +233,18 @@ constructor(
       manageWishlistItem.setArchived(product.id, true)
       swipeEventFlow.value =
         PendingSwipeEvent(product.id, product.title, SwipeUndoType.ARCHIVED)
+    }
+  }
+
+  fun unarchiveProduct(productId: String) {
+    viewModelScope.launch {
+      manageWishlistItem.setArchived(productId, false)
+    }
+  }
+
+  fun deleteProduct(productId: String) {
+    viewModelScope.launch {
+      manageWishlistItem.deleteProduct(productId)
     }
   }
 

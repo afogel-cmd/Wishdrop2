@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -76,6 +77,7 @@ fun WishDropAppShell(
       ) {
         TopLevelDestination.entries.forEach { destination ->
           val selected = isDestinationSelected(currentDestination, destination)
+          val label = getDestinationLabel(destination)
           NavigationRailItem(
             selected = selected,
             onClick = { navController.navigateToTopLevel(destination) },
@@ -83,12 +85,12 @@ fun WishDropAppShell(
               Icon(
                 imageVector =
                   if (selected) destination.selectedIcon else destination.unselectedIcon,
-                contentDescription = destination.label,
+                contentDescription = label,
               )
             },
             label = {
               Text(
-                text = destination.label,
+                text = label,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
               )
@@ -115,6 +117,7 @@ fun WishDropAppShell(
           ) {
             TopLevelDestination.entries.forEach { destination ->
               val selected = isDestinationSelected(currentDestination, destination)
+              val label = getDestinationLabel(destination)
               NavigationBarItem(
                 selected = selected,
                 onClick = { navController.navigateToTopLevel(destination) },
@@ -122,12 +125,12 @@ fun WishDropAppShell(
                   Icon(
                     imageVector =
                       if (selected) destination.selectedIcon else destination.unselectedIcon,
-                    contentDescription = destination.label,
+                    contentDescription = label,
                   )
                 },
                 label = {
                   Text(
-                    text = destination.label,
+                    text = label,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -227,3 +230,13 @@ private fun isDestinationSelected(
     TopLevelDestination.PROFILE -> destination.hasRoute<ProfileRoute>()
   }
 }
+
+@Composable
+private fun getDestinationLabel(destination: TopLevelDestination): String =
+  when (destination) {
+    TopLevelDestination.HOME -> stringResource(R.string.nav_home)
+    TopLevelDestination.GIFT_ASSISTANT -> stringResource(R.string.nav_gift_assistant)
+    TopLevelDestination.WISHLIST -> stringResource(R.string.nav_wishlist)
+    TopLevelDestination.INSIGHTS -> stringResource(R.string.nav_insights)
+    TopLevelDestination.PROFILE -> stringResource(R.string.nav_profile)
+  }

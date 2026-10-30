@@ -121,6 +121,9 @@ constructor(
   suspend fun setArchived(productId: String, archived: Boolean) =
     productRepository.setArchived(productId, archived)
 
+  suspend fun deleteProduct(productId: String) =
+    productRepository.deleteProduct(productId)
+
   suspend fun togglePriceAlert(productId: String) =
     productRepository.togglePriceAlert(productId)
 

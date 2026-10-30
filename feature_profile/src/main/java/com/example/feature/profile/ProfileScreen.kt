@@ -17,10 +17,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -31,9 +45,12 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberDatePickerState
+import com.example.core.format.EventDateUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,6 +69,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.core.preferences.AppLanguage
 import com.example.core.preferences.ThemeMode
 import com.example.core.preferences.UserPreferences
 import com.example.designsystem.components.ExpressiveSectionHeader
@@ -134,6 +152,7 @@ fun ProfileRouteScreen(
         viewModel.acceptInvitation(inviteId, onOpenSharedList)
       },
       onThemeModeSelected = viewModel::setThemeMode,
+      onLanguageSelected = viewModel::setAppLanguage,
       onDynamicColorChanged = viewModel::setDynamicColor,
       onPriceAlertsChanged = viewModel::setPriceAlerts,
       onEventRemindersChanged = viewModel::setEventReminders,
@@ -160,6 +179,7 @@ fun ProfileScreenContent(
   onRetry: () -> Unit,
   onOpenFamilyMember: (String) -> Unit,
   onThemeModeSelected: (ThemeMode) -> Unit,
+  onLanguageSelected: (AppLanguage) -> Unit = {},
   onDynamicColorChanged: (Boolean) -> Unit,
   onPriceAlertsChanged: (Boolean) -> Unit,
   onEventRemindersChanged: (Boolean) -> Unit,
@@ -234,30 +254,50 @@ fun ProfileScreenContent(
               modifier = Modifier.fillMaxWidth().testTag("profile_user_card"),
             ) {
               Row(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
               ) {
                 PersonAvatarBadge(
                   name = prefs.displayName,
                   accentKey = "indigo",
                   imageUrl = prefs.avatarUrl,
-                  size = 60.dp,
+                  size = 52.dp,
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                  Text(text = prefs.displayName, style = MaterialTheme.typography.titleLarge)
+                Column(
+                  modifier = Modifier.weight(1f),
+                  verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                  Text(
+                    text = prefs.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                  )
                   Text(
                     text = prefs.email,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                   )
                 }
-                FilledTonalButton(
-                  onClick = { showEditDialog = true },
-                  modifier =
-                    Modifier.minimumInteractiveComponentSize().testTag("profile_edit_button"),
+                Surface(
+                  shape = CircleShape,
+                  color = MaterialTheme.colorScheme.primaryContainer,
+                  modifier = Modifier.size(40.dp),
                 ) {
-                  Text(stringResource(R.string.profile_edit))
+                  IconButton(
+                    onClick = { showEditDialog = true },
+                    modifier = Modifier.testTag("profile_edit_button"),
+                  ) {
+                    Icon(
+                      imageVector = WishDropIcons.Edit,
+                      contentDescription = stringResource(R.string.profile_edit),
+                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                      modifier = Modifier.size(20.dp),
+                    )
+                  }
                 }
               }
             }
@@ -325,6 +365,35 @@ fun ProfileScreenContent(
                       onEdit = { editingMember = member },
                       onDelete = { onDeleteFamilyMember(member.id) },
                     )
+                  }
+                }
+              }
+            }
+          }
+
+          item(key = "language_settings", contentType = "settings_card") {
+            PixelBentoCard(modifier = Modifier.fillMaxWidth()) {
+              Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+              ) {
+                Text(
+                  text = stringResource(R.string.profile_language_section),
+                  style = MaterialTheme.typography.titleLarge,
+                  modifier = Modifier.semantics { heading() },
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                  AppLanguage.entries.forEachIndexed { idx, lang ->
+                    SegmentedButton(
+                      selected = prefs.appLanguage == lang,
+                      onClick = { onLanguageSelected(lang) },
+                      shape = SegmentedButtonDefaults.itemShape(idx, AppLanguage.entries.size),
+                      modifier =
+                        Modifier.minimumInteractiveComponentSize()
+                          .testTag("profile_lang_${lang.name.lowercase()}"),
+                    ) {
+                      Text(lang.displayName)
+                    }
                   }
                 }
               }
@@ -601,235 +670,448 @@ fun ProfileScreenContent(
       }
 
       if (showAddMemberDialog) {
-        var name by rememberSaveable { mutableStateOf("") }
-        var relationship by rememberSaveable { mutableStateOf("Partner") }
-        var eventName by rememberSaveable { mutableStateOf("Születésnap") }
-        var daysText by rememberSaveable { mutableStateOf("30") }
-        var budgetText by rememberSaveable { mutableStateOf("25000") }
-        var interestsText by rememberSaveable { mutableStateOf("") }
-        var avatarUrl by rememberSaveable { mutableStateOf<String?>(null) }
-
-        val memberPhotoPicker = rememberLauncherForActivityResult(
-          ActivityResultContracts.PickVisualMedia()
-        ) { uri ->
-          if (uri != null) {
-            avatarUrl = uri.toString()
-          }
-        }
-
-        AlertDialog(
-          onDismissRequest = { showAddMemberDialog = false },
-          title = { Text("Új családtag felvitele") },
-          text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-              ) {
-                PersonAvatarBadge(
-                  name = name.ifBlank { "Új" },
-                  accentKey = "coral",
-                  imageUrl = avatarUrl,
-                  size = 48.dp,
-                )
-                OutlinedButton(
-                  onClick = {
-                    memberPhotoPicker.launch(
-                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                  },
-                ) {
-                  Text("Fotó feltöltése")
-                }
-              }
-              OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Név") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = relationship,
-                onValueChange = { relationship = it },
-                label = { Text("Kapcsolat (pl. Partner, Gyerek, Szülő)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = eventName,
-                onValueChange = { eventName = it },
-                label = { Text("Következő esemény neve") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = daysText,
-                onValueChange = { daysText = it },
-                label = { Text("Napok az eseményig") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = budgetText,
-                onValueChange = { budgetText = it },
-                label = { Text("Ajándék keret (Ft)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = interestsText,
-                onValueChange = { interestsText = it },
-                label = { Text("Érdeklődési körök (vesszővel elválasztva)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-            }
-          },
-          confirmButton = {
-            TextButton(
-              onClick = {
-                if (name.isNotBlank()) {
-                  val interests = interestsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                  onAddFamilyMember(
-                    name.trim(),
-                    relationship.trim().ifBlank { "Családtag" },
-                    eventName.trim().ifBlank { "Születésnap" },
-                    daysText.toIntOrNull() ?: 30,
-                    budgetText.toIntOrNull() ?: 20000,
-                    interests,
-                    avatarUrl,
-                  )
-                  showAddMemberDialog = false
-                }
-              },
-              modifier = Modifier.minimumInteractiveComponentSize(),
-            ) {
-              Text("Hozzáadás")
-            }
-          },
-          dismissButton = {
-            TextButton(
-              onClick = { showAddMemberDialog = false },
-              modifier = Modifier.minimumInteractiveComponentSize(),
-            ) {
-              Text(stringResource(R.string.action_cancel))
-            }
+        FamilyMemberDialog(
+          dialogTitle = "Új családtag hozzáadása",
+          confirmButtonText = "Hozzáadás",
+          initialName = "",
+          initialRelationship = "Partner",
+          initialEventName = "Születésnap",
+          initialDaysUntilEvent = 30,
+          initialBudgetHuf = 25000,
+          initialInterests = listOf("Könyvek", "Kávé"),
+          initialAvatarUrl = null,
+          accentKey = "coral",
+          onDismiss = { showAddMemberDialog = false },
+          onConfirm = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl ->
+            onAddFamilyMember(
+              name,
+              relationship,
+              eventName,
+              daysUntilEvent,
+              budgetHuf,
+              interests,
+              avatarUrl,
+            )
+            showAddMemberDialog = false
           },
         )
       }
 
       val currentEditingMember = editingMember
       if (currentEditingMember != null) {
-        var name by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.name) }
-        var relationship by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.relationship) }
-        var eventName by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.upcomingEventName) }
-        var daysText by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.daysUntilEvent.toString()) }
-        var interestsText by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.interests.joinToString(", ")) }
-        var avatarUrl by rememberSaveable(currentEditingMember.id) { mutableStateOf(currentEditingMember.avatarUrl) }
-
-        val editMemberPhotoPicker = rememberLauncherForActivityResult(
-          ActivityResultContracts.PickVisualMedia()
-        ) { uri ->
-          if (uri != null) {
-            avatarUrl = uri.toString()
-          }
-        }
-
-        AlertDialog(
-          onDismissRequest = { editingMember = null },
-          title = { Text("Családtag szerkesztése") },
-          text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-              ) {
-                PersonAvatarBadge(
-                  name = name.ifBlank { "Családtag" },
-                  accentKey = currentEditingMember.accentKey,
-                  imageUrl = avatarUrl,
-                  size = 48.dp,
-                )
-                OutlinedButton(
-                  onClick = {
-                    editMemberPhotoPicker.launch(
-                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                  },
-                ) {
-                  Text("Fotó módosítása")
-                }
-              }
-              OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Név") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = relationship,
-                onValueChange = { relationship = it },
-                label = { Text("Kapcsolat") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = eventName,
-                onValueChange = { eventName = it },
-                label = { Text("Következő esemény") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = daysText,
-                onValueChange = { daysText = it },
-                label = { Text("Napok az eseményig") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-              OutlinedTextField(
-                value = interestsText,
-                onValueChange = { interestsText = it },
-                label = { Text("Érdeklődési körök") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-              )
-            }
-          },
-          confirmButton = {
-            TextButton(
-              onClick = {
-                if (name.isNotBlank()) {
-                  val interests = interestsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                  onUpdateFamilyMember(
-                    currentEditingMember.id,
-                    name.trim(),
-                    relationship.trim(),
-                    eventName.trim(),
-                    daysText.toIntOrNull() ?: 30,
-                    interests,
-                    avatarUrl,
-                  )
-                  editingMember = null
-                }
-              },
-              modifier = Modifier.minimumInteractiveComponentSize(),
-            ) {
-              Text("Mentés")
-            }
-          },
-          dismissButton = {
-            TextButton(
-              onClick = { editingMember = null },
-              modifier = Modifier.minimumInteractiveComponentSize(),
-            ) {
-              Text(stringResource(R.string.action_cancel))
-            }
+        FamilyMemberDialog(
+          dialogTitle = "Családtag szerkesztése",
+          confirmButtonText = "Mentés",
+          initialName = currentEditingMember.name,
+          initialRelationship = currentEditingMember.relationship,
+          initialEventName = currentEditingMember.upcomingEventName,
+          initialDaysUntilEvent = currentEditingMember.daysUntilEvent,
+          initialBudgetHuf = currentEditingMember.budgetHuf,
+          initialInterests = currentEditingMember.interests,
+          initialAvatarUrl = currentEditingMember.avatarUrl,
+          accentKey = currentEditingMember.accentKey,
+          onDismiss = { editingMember = null },
+          onConfirm = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl ->
+            onUpdateFamilyMember(
+              currentEditingMember.id,
+              name,
+              relationship,
+              eventName,
+              daysUntilEvent,
+              interests,
+              avatarUrl,
+            )
+            editingMember = null
           },
         )
       }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FamilyMemberDialog(
+  dialogTitle: String,
+  confirmButtonText: String,
+  initialName: String = "",
+  initialRelationship: String = "Partner",
+  initialEventName: String = "Születésnap",
+  initialDaysUntilEvent: Int = 30,
+  initialBudgetHuf: Int = 25_000,
+  initialInterests: List<String> = emptyList(),
+  initialAvatarUrl: String? = null,
+  accentKey: String = "coral",
+  onDismiss: () -> Unit,
+  onConfirm: (
+    name: String,
+    relationship: String,
+    eventName: String,
+    daysUntilEvent: Int,
+    budgetHuf: Int,
+    interests: List<String>,
+    avatarUrl: String?,
+  ) -> Unit,
+) {
+  var name by rememberSaveable { mutableStateOf(initialName) }
+  var relationship by rememberSaveable { mutableStateOf(initialRelationship) }
+  var avatarUrl by rememberSaveable { mutableStateOf(initialAvatarUrl) }
+  var budgetText by rememberSaveable { mutableStateOf(initialBudgetHuf.toString()) }
+
+  val eventTypes = listOf("Születésnap", "Évforduló", "Karácsony", "Névnap", "Egyéb")
+  var selectedEventType by rememberSaveable {
+    mutableStateOf(
+      when {
+        initialEventName.contains("szüli", ignoreCase = true) || initialEventName.contains("születés", ignoreCase = true) || initialEventName.contains("birthday", ignoreCase = true) -> "Születésnap"
+        initialEventName.contains("évforduló", ignoreCase = true) || initialEventName.contains("anniversary", ignoreCase = true) -> "Évforduló"
+        initialEventName.contains("karácsony", ignoreCase = true) || initialEventName.contains("christmas", ignoreCase = true) -> "Karácsony"
+        initialEventName.contains("névnap", ignoreCase = true) || initialEventName.contains("nameday", ignoreCase = true) -> "Névnap"
+        else -> if (initialEventName.isNotBlank() && initialEventName != "Születésnap") "Egyéb" else "Születésnap"
+      }
+    )
+  }
+  var customEventName by rememberSaveable {
+    mutableStateOf(if (selectedEventType == "Egyéb") initialEventName else "")
+  }
+
+  var showDatePicker by rememberSaveable { mutableStateOf(false) }
+  var selectedDateMillis by rememberSaveable {
+    mutableStateOf(System.currentTimeMillis() + initialDaysUntilEvent.toLong() * 86_400_000L)
+  }
+  val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+
+  val calculatedDays = EventDateUtils.calculateDaysUntilRecurringEvent(selectedDateMillis)
+  val formattedDateStr = EventDateUtils.formatEventDate(selectedDateMillis)
+  val daysRemainingStr = EventDateUtils.formatDaysRemaining(calculatedDays)
+
+  var selectedInterests by rememberSaveable {
+    mutableStateOf(initialInterests.ifEmpty { listOf("Könyvek", "Kávé") })
+  }
+  var customInterestInput by rememberSaveable { mutableStateOf("") }
+
+  val photoPicker = rememberLauncherForActivityResult(
+    ActivityResultContracts.PickVisualMedia()
+  ) { uri ->
+    if (uri != null) {
+      avatarUrl = uri.toString()
+    }
+  }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = dialogTitle,
+        style = MaterialTheme.typography.titleLarge,
+      )
+    },
+    text = {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+      ) {
+        // 1. Avatar and photo upload
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+          PersonAvatarBadge(
+            name = name.ifBlank { "Új" },
+            accentKey = accentKey,
+            imageUrl = avatarUrl,
+            size = 54.dp,
+          )
+          OutlinedButton(
+            onClick = {
+              photoPicker.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+              )
+            },
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Camera,
+              contentDescription = null,
+              modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Fotó módosítása")
+          }
+        }
+
+        // 2. Name
+        OutlinedTextField(
+          value = name,
+          onValueChange = { name = it },
+          label = { Text("Név *") },
+          placeholder = { Text("pl. Dalma, Attila, Ármin") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+        )
+
+        // 3. Relationship chips & custom
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text("Kapcsolat", style = MaterialTheme.typography.labelMedium)
+          val commonRelations = listOf("Partner", "Gyerek", "Szülő", "Testvér", "Barát", "Családtag")
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            commonRelations.forEach { rel ->
+              FilterChip(
+                selected = relationship.equals(rel, ignoreCase = true),
+                onClick = { relationship = rel },
+                label = { Text(rel) },
+              )
+            }
+          }
+          if (commonRelations.none { it.equals(relationship, ignoreCase = true) }) {
+            OutlinedTextField(
+              value = relationship,
+              onValueChange = { relationship = it },
+              label = { Text("Egyedi kapcsolat") },
+              singleLine = true,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
+        }
+
+        // 4. Upcoming event selection (Születésnap / Évforduló / stb.)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text("Következő esemény / alkalom", style = MaterialTheme.typography.labelMedium)
+          FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            eventTypes.forEach { type ->
+              FilterChip(
+                selected = selectedEventType == type,
+                onClick = {
+                  selectedEventType = type
+                  if (type == "Karácsony") {
+                    val cal = java.util.Calendar.getInstance()
+                    cal.set(java.util.Calendar.MONTH, java.util.Calendar.DECEMBER)
+                    cal.set(java.util.Calendar.DAY_OF_MONTH, 25)
+                    selectedDateMillis = cal.timeInMillis
+                  }
+                },
+                label = {
+                  val icon = when (type) {
+                    "Születésnap" -> WishDropIcons.Cake
+                    "Évforduló" -> WishDropIcons.Favorite
+                    "Karácsony" -> WishDropIcons.Holiday
+                    "Névnap" -> WishDropIcons.Botanical
+                    else -> WishDropIcons.Sparkle
+                  }
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(type)
+                  }
+                },
+              )
+            }
+          }
+
+          if (selectedEventType == "Egyéb") {
+            OutlinedTextField(
+              value = customEventName,
+              onValueChange = { customEventName = it },
+              label = { Text("Esemény megnevezése (pl. Diplomaosztó, Házavató)") },
+              singleLine = true,
+              modifier = Modifier.fillMaxWidth(),
+            )
+          }
+        }
+
+        // 5. Date Picker (replaces "Napok az eseményig")
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          Text("Esemény dátuma", style = MaterialTheme.typography.labelMedium)
+          OutlinedButton(
+            onClick = { showDatePicker = true },
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+          ) {
+            Icon(
+              imageVector = when (selectedEventType) {
+                "Születésnap" -> WishDropIcons.Cake
+                "Évforduló" -> WishDropIcons.Favorite
+                "Karácsony" -> WishDropIcons.Holiday
+                else -> WishDropIcons.History
+              },
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = formattedDateStr,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = daysRemainingStr,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+              )
+            }
+            Text(
+              text = "Módosítás",
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.primary,
+            )
+          }
+        }
+
+        // 6. Interests (Érdeklődési körök)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Text("Érdeklődési körök (AI ajánlások alapja)", style = MaterialTheme.typography.labelMedium)
+
+          if (selectedInterests.isNotEmpty()) {
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              selectedInterests.forEach { interest ->
+                InputChip(
+                  selected = true,
+                  onClick = { selectedInterests = selectedInterests - interest },
+                  label = { Text(interest) },
+                  trailingIcon = {
+                    Icon(
+                      imageVector = WishDropIcons.Clear,
+                      contentDescription = "Törlés",
+                      modifier = Modifier.size(14.dp),
+                    )
+                  },
+                )
+              }
+            }
+          }
+
+          val availableSuggestions = EventDateUtils.POPULAR_GIFT_INTERESTS.filter { interest ->
+            selectedInterests.none { it.equals(interest, ignoreCase = true) }
+          }
+          if (availableSuggestions.isNotEmpty()) {
+            Text(
+              text = "Gyors hozzáadás:",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              availableSuggestions.take(6).forEach { suggestion ->
+                SuggestionChip(
+                  onClick = { selectedInterests = selectedInterests + suggestion },
+                  label = { Text("+ $suggestion") },
+                )
+              }
+            }
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            OutlinedTextField(
+              value = customInterestInput,
+              onValueChange = { customInterestInput = it },
+              placeholder = { Text("Egyedi érdeklődés (pl. Jóga)...") },
+              singleLine = true,
+              modifier = Modifier.weight(1f),
+            )
+            FilledTonalButton(
+              onClick = {
+                val clean = customInterestInput.trim()
+                if (clean.isNotBlank() && selectedInterests.none { it.equals(clean, ignoreCase = true) }) {
+                  selectedInterests = selectedInterests + clean
+                  customInterestInput = ""
+                }
+              },
+              enabled = customInterestInput.isNotBlank(),
+              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+              Icon(WishDropIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Hozzáad")
+            }
+          }
+        }
+
+        // 7. Budget
+        OutlinedTextField(
+          value = budgetText,
+          onValueChange = { budgetText = it },
+          label = { Text("Ajándék keret (Ft)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+        )
+      }
+    },
+    confirmButton = {
+      TextButton(
+        onClick = {
+          if (name.isNotBlank()) {
+            val resolvedEventName = when (selectedEventType) {
+              "Születésnap" -> "${name.trim()} születésnapja"
+              "Évforduló" -> "${name.trim()} évfordulója"
+              "Karácsony" -> "Karácsony"
+              "Névnap" -> "${name.trim()} névnapja"
+              else -> customEventName.trim().ifBlank { "${name.trim()} ünnepe" }
+            }
+            onConfirm(
+              name.trim(),
+              relationship.trim().ifBlank { "Családtag" },
+              resolvedEventName,
+              calculatedDays,
+              budgetText.toIntOrNull() ?: 25_000,
+              selectedInterests,
+              avatarUrl,
+            )
+          }
+        },
+        modifier = Modifier.minimumInteractiveComponentSize(),
+      ) {
+        Text(confirmButtonText)
+      }
+    },
+    dismissButton = {
+      TextButton(
+        onClick = onDismiss,
+        modifier = Modifier.minimumInteractiveComponentSize(),
+      ) {
+        Text(stringResource(R.string.action_cancel))
+      }
+    },
+  )
+
+  if (showDatePicker) {
+    DatePickerDialog(
+      onDismissRequest = { showDatePicker = false },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            datePickerState.selectedDateMillis?.let {
+              selectedDateMillis = it
+            }
+            showDatePicker = false
+          }
+        ) {
+          Text("OK")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDatePicker = false }) {
+          Text(stringResource(R.string.action_cancel))
+        }
+      }
+    ) {
+      DatePicker(state = datePickerState)
     }
   }
 }

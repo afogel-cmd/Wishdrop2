@@ -119,6 +119,12 @@ internal fun VisibilitySelectorCard(
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
         ListVisibility.entries.forEach { mode ->
+          val labelRes = when (mode) {
+            ListVisibility.PRIVATE -> R.string.shared_list_visibility_private
+            ListVisibility.SHARED -> R.string.shared_list_visibility_shared
+            ListVisibility.HIDDEN -> R.string.shared_list_visibility_hidden
+            ListVisibility.OWNER_ONLY -> R.string.shared_list_visibility_owner_only
+          }
           FilterChip(
             selected = currentVisibility == mode,
             onClick = {
@@ -126,7 +132,7 @@ internal fun VisibilitySelectorCard(
                 if (mode == ListVisibility.HIDDEN) hiddenFromMemberId ?: "rec_dalma" else null
               onUpdateVisibility(mode, targetHidden)
             },
-            label = { Text(mode.label) },
+            label = { Text(stringResource(labelRes)) },
             leadingIcon = {
               val icon =
                 when (mode) {
@@ -233,25 +239,56 @@ internal fun PendingInvitationRowCard(
     color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
     modifier = Modifier.fillMaxWidth().testTag("shared_invite_${invitation.id}"),
   ) {
-    Row(
-      modifier = Modifier.fillMaxWidth().padding(16.dp),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically,
+    Column(
+      modifier = Modifier.fillMaxWidth().padding(14.dp),
+      verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(text = invitation.inviteeEmail, style = MaterialTheme.typography.titleSmall)
-        Text(
-          text = "Invited by ${invitation.inviterName} • ${invitation.proposedRole.label}",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        Surface(
+          shape = CircleShape,
+          color = MaterialTheme.colorScheme.primaryContainer,
+          modifier = Modifier.size(40.dp),
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = WishDropIcons.Mail,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.onPrimaryContainer,
+              modifier = Modifier.size(20.dp),
+            )
+          }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = invitation.inviteeEmail,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+          Text(
+            text = "Meghívó tőle: ${invitation.inviterName} • ${invitation.proposedRole.label}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
       }
       FilledTonalButton(
         onClick = onAccept,
         modifier =
-          Modifier.minimumInteractiveComponentSize()
+          Modifier.fillMaxWidth()
             .testTag("accept_invite_button_${invitation.id}"),
       ) {
+        Icon(
+          imageVector = WishDropIcons.Check,
+          contentDescription = null,
+          modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.shared_list_accept_join))
       }
     }
@@ -345,11 +382,26 @@ internal fun SharedListActivityRow(event: ActivityEvent) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun InviteCollaboratorDialog(
+  listTitle: String = "Közös kívánságlista",
+  knownEmails: List<String> = emptyList(),
   onDismiss: () -> Unit,
   onSend: (String, ListMemberRole) -> Unit,
 ) {
   var email by rememberSaveable { mutableStateOf("") }
   var selectedRole by rememberSaveable { mutableStateOf(ListMemberRole.EDITOR) }
+
+  val context = androidx.compose.ui.platform.LocalContext.current
+  val cleanEmail = email.trim().lowercase()
+
+  val isAppUser = androidx.compose.runtime.remember(cleanEmail, knownEmails) {
+    cleanEmail.isNotEmpty() && (
+      cleanEmail.contains("pixelmail") ||
+      cleanEmail.contains("attila") ||
+      cleanEmail.contains("dalma") ||
+      cleanEmail.contains("armin") ||
+      knownEmails.any { it.trim().lowercase() == cleanEmail }
+    )
+  }
 
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -365,6 +417,57 @@ internal fun InviteCollaboratorDialog(
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
           modifier = Modifier.fillMaxWidth().testTag("shared_invite_email_input"),
         )
+
+        if (email.isNotBlank()) {
+          if (isAppUser) {
+            androidx.compose.material3.Surface(
+              color = MaterialTheme.colorScheme.primaryContainer,
+              shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.AlertActive,
+                  contentDescription = null,
+                  modifier = Modifier.size(16.dp),
+                  tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                  text = "WishDrop felhasználó — Értesítést kap az appban 🔔",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+              }
+            }
+          } else {
+            androidx.compose.material3.Surface(
+              color = MaterialTheme.colorScheme.tertiaryContainer,
+              shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.Mail,
+                  contentDescription = null,
+                  modifier = Modifier.size(16.dp),
+                  tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+                Text(
+                  text = "Még nincs appja — Értesítő emailt fog kapni ✉️",
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+              }
+            }
+          }
+        }
+
         FlowRow(
           horizontalArrangement = Arrangement.spacedBy(8.dp),
           verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -380,11 +483,10 @@ internal fun InviteCollaboratorDialog(
             }
         }
 
-        val context = androidx.compose.ui.platform.LocalContext.current
         OutlinedButton(
           onClick = {
             val inviteMessage = """
-              Szia! Meghívtalak a WishDrop közös kívánságlistámra!
+              Szia! Meghívtalak a(z) "$listTitle" WishDrop közös kívánságlistámra!
               
               1. Töltsd le az appot a GitHubról:
               👉 https://github.com/aistudio/wishdrop/releases
@@ -410,9 +512,22 @@ internal fun InviteCollaboratorDialog(
     confirmButton = {
       Button(
         onClick = {
-          onSend(email, selectedRole)
-          onDismiss()
+          if (email.isNotBlank()) {
+            onSend(email.trim(), selectedRole)
+            if (!isAppUser) {
+              com.example.core.notification.WishDropNotificationManager.sendEmailInvitation(
+                context = context,
+                recipientEmail = email.trim(),
+                inviterName = "WishDrop",
+                listTitle = listTitle,
+                role = selectedRole.label,
+                isHungarian = true,
+              )
+            }
+            onDismiss()
+          }
         },
+        enabled = email.isNotBlank() && email.contains("@"),
         modifier = Modifier.minimumInteractiveComponentSize().testTag("shared_invite_send_button"),
       ) {
         Icon(imageVector = WishDropIcons.Send, contentDescription = null, modifier = Modifier.size(16.dp))

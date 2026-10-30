@@ -550,6 +550,11 @@ constructor(
     remoteDataSource.notifyLocalMutation("products", "ARCHIVE")
   }
 
+  override suspend fun deleteProduct(productId: String) {
+    productDao.deleteProduct(productId)
+    remoteDataSource.notifyLocalMutation("products", "DELETE")
+  }
+
   override suspend fun togglePriceAlert(productId: String) {
     productDao.togglePriceAlert(productId)
   }
@@ -662,7 +667,12 @@ constructor(
       recommendationDao.observeRecommendationsForRecipient(recipientId),
       preferencesRepository.preferencesFlow.map { it.dismissedRecommendationIds }.distinctUntilChanged(),
     ) { list, dismissed ->
-      list.filterNot { it.id in dismissed }.map { it.toDomain() }
+      list.filterNot { rec ->
+        rec.id in dismissed ||
+          rec.title in dismissed ||
+          rec.title.lowercase().trim() in dismissed ||
+          dismissed.any { d -> d.length >= 4 && rec.title.contains(d, ignoreCase = true) }
+      }.map { it.toDomain() }
     }
 
   override suspend fun updateGiftStage(recipientId: String, stage: GiftStage) {
@@ -773,13 +783,69 @@ constructor(
 
   override suspend fun dismissRecommendation(recommendationId: String) {
     val existing = recommendationDao.getRecommendationById(recommendationId)
+    val tokensToDismiss = mutableSetOf(recommendationId)
     if (existing != null) {
-      preferencesRepository.addDismissedRecommendation(existing.title)
-      preferencesRepository.addDismissedRecommendation(existing.title.lowercase())
+      tokensToDismiss.add(existing.title)
+      tokensToDismiss.add(existing.title.lowercase().trim())
+      val normalized = existing.title.lowercase().replace(Regex("[^a-z0-9áéíóöőúüű ]"), " ")
+      tokensToDismiss.add(normalized.trim())
+      normalized.split(" ")
+        .map { it.trim() }
+        .filter { it.length >= 4 }
+        .forEach { tokensToDismiss.add(it) }
     }
+    preferencesRepository.addDismissedRecommendations(tokensToDismiss)
     recommendationDao.deleteRecommendation(recommendationId)
-    preferencesRepository.addDismissedRecommendation(recommendationId)
   }
+
+  private fun isGiftDismissedOrSaved(
+    title: String,
+    dismissedTokens: Set<String>,
+    savedProductTitles: List<String>,
+  ): Boolean {
+    val cleanTitle = title.trim().lowercase()
+
+    // 1. Direct or substring match with saved wishlist products
+    for (saved in savedProductTitles) {
+      val cleanSaved = saved.trim().lowercase()
+      if (cleanSaved.isEmpty()) continue
+      if (cleanTitle == cleanSaved) return true
+      if (cleanSaved.length >= 6 && cleanTitle.contains(cleanSaved)) return true
+      if (cleanTitle.length >= 6 && cleanSaved.contains(cleanTitle)) return true
+    }
+
+    // 2. Direct match with dismissed tokens
+    if (dismissedTokens.any { it.equals(cleanTitle, ignoreCase = true) }) return true
+
+    // 3. Keyword / substring match with dismissed items
+    for (d in dismissedTokens) {
+      val cleanD = d.trim().lowercase()
+      if (cleanD.length < 4) continue
+      if (cleanTitle.contains(cleanD) || cleanD.contains(cleanTitle)) return true
+
+      val dWords = cleanD.split(Regex("[\\s\\-_/]+")).filter { it.length >= 4 }
+      val titleWords = cleanTitle.split(Regex("[\\s\\-_/]+")).filter { it.length >= 4 }
+      val common = dWords.intersect(titleWords.toSet())
+      if (common.size >= 2) return true
+      if (dWords.size == 1 && common.size == 1) {
+        val kw = dWords.first()
+        if (kw in listOf("bonsai", "szárítógép", "stagg", "kinto", "kindle", "phaidon", "airfryer", "ikebana", "pixel", "airdrop", "wh1000xm5")) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  private data class GiftCandidate(
+    val title: String,
+    val store: String,
+    val priceHuf: Int,
+    val imageKey: String,
+    val categories: List<String>,
+    val tags: List<String>,
+    val primaryInterest: String,
+  )
 
   override suspend fun generateAiRecommendations(recipientId: String) {
     val recipientEntity = recipientDao.getRecipientById(recipientId) ?: return
@@ -790,51 +856,186 @@ constructor(
     val prefs = preferencesRepository.preferencesFlow.first()
     val dismissed = prefs.dismissedRecommendationIds
 
-    val generatedCatalog = listOf(
-      Triple("Fellow Stagg EKG Kávékiöntő", 42_990, listOf("Coffee", "Kitchen")),
-      Triple("Hario V60 Kerámia Csepegtető Szett", 14_890, listOf("Coffee", "Gift")),
-      Triple("LEGO Icons Vadvirág Csokor", 19_990, listOf("Flowers", "LEGO", "Decor")),
-      Triple("LEGO Botanical Bonsai Fa", 17_990, listOf("LEGO", "Home", "Decor")),
-      Triple("Google Pixel Buds Pro 2 Fülhallgató", 78_900, listOf("Audio", "Tech", "Pixel")),
-      Triple("Anker Magnetic PowerBank 10000mAh", 18_490, listOf("Tech", "Accessories")),
-      Triple("Taschen Művészeti És Design Díszalbum", 22_500, listOf("Books", "Art")),
-      Triple("Kindle Paperwhite 16GB E-könyv Olvasó", 59_990, listOf("Books", "Tech")),
-      Triple("Handcrafted Bőr Jegyzettömb & Bőrtok", 12_990, listOf("Gift", "Office")),
-      Triple("Smart Ambient Intelligens Asztali Lámpa", 28_990, listOf("Home", "Tech")),
-      Triple("Bosch Hőszivattyús Prémium Szárítógép", 196_990, listOf("Home", "Appliances")),
-      Triple("Miele Eco Hőszivattyús Ruhaszárító", 249_990, listOf("Home", "Appliances")),
-      Triple("Slim Fit Chino Elegáns Pamut Nadrág", 19_990, listOf("Fashion", "Clothing")),
-      Triple("Klasszikus Valódi Bőr Női / Férfi Öv", 12_990, listOf("Fashion", "Accessories")),
-      Triple("Aromaterápiás Ultrahangos Párásító", 16_990, listOf("Home", "Wellness")),
-      Triple("Sony WH-1000XM5 Zajszűrős Fejhallgató", 119_900, listOf("Audio", "Tech")),
+    val savedProducts = productDao.getProductsForRecipientSnapshot(recipientId)
+    val savedProductTitles = savedProducts.map { it.title }
+
+    // Clear previous un-saved recommendations so they don't linger or duplicate
+    recommendationDao.deleteUnsavedRecommendationsForRecipient(recipientId)
+
+    val candidateCatalog = listOf(
+      // Flowers & Botanical
+      GiftCandidate("LEGO Icons Vadvirág Csokor", "LEGO Store", 19_990, "lego_bonsai", listOf("Flowers", "Decor", "LEGO"), listOf("Flowers", "Home Decor", "Creative Hobbies"), "Flowers"),
+      GiftCandidate("Phaidon Flower Color Guide Botanikai Díszkönyv", "Libri", 14_990, "art_book", listOf("Flowers", "Books", "Art"), listOf("Flowers", "Books", "Art"), "Flowers"),
+      GiftCandidate("Japán Ikebana Virágrendező Kerámia Készlet", "Kézműves Studio", 12_490, "art_book", listOf("Flowers", "Home Decor", "Creative Hobbies"), listOf("Flowers", "Home Decor", "Creative Hobbies"), "Flowers"),
+      GiftCandidate("Smart Garden 3 Intelligens Beltéri Fűszerkert", "Alza", 34_990, "tech_accessory", listOf("Flowers", "Home", "Tech"), listOf("Flowers", "Home Decor", "Technology"), "Flowers"),
+      GiftCandidate("Kézműves Minimalista Kerámia Virágváza", "Design Market", 11_990, "coffee_kettle", listOf("Home Decor", "Flowers"), listOf("Flowers", "Home Decor", "Art"), "Flowers"),
+
+      // Coffee & Specialty
+      GiftCandidate("Fellow Stagg EKG Hőfokszabályzós Kávékiöntő", "Specialty Roast", 42_990, "coffee_kettle", listOf("Coffee", "Kitchen", "Design"), listOf("Coffee", "Home Decor", "Technology"), "Coffee"),
+      GiftCandidate("Kinto Sepia Kerámia Coffee Dripper & Kancsó", "Specialty Roast", 14_890, "coffee_kettle", listOf("Coffee", "Home Decor", "Gift"), listOf("Coffee", "Home Decor", "Gift"), "Coffee"),
+      GiftCandidate("Timemore Chestnut C3 Precíziós Kézi Kávéőrlő", "Barista Tools", 27_990, "coffee_kettle", listOf("Coffee", "Kitchen"), listOf("Coffee", "Creative Hobbies", "Technology"), "Coffee"),
+      GiftCandidate("Specialty Kávéválogatás 4 Földrészről (4x250g)", "Madal Café", 13_990, "coffee_kettle", listOf("Coffee", "Gourmet", "Gift"), listOf("Coffee", "Gift"), "Coffee"),
+      GiftCandidate("Kézzel Készített Kerámia Flat White Csésze Szett", "Kézműves Kerámia", 10_990, "coffee_kettle", listOf("Coffee", "Home Decor", "Art"), listOf("Coffee", "Home Decor", "Creative Hobbies"), "Coffee"),
+
+      // Books & Reading
+      GiftCandidate("Kindle Paperwhite 16GB Vízálló E-könyv Olvasó", "Amazon Store", 59_990, "art_book", listOf("Books", "Technology", "Reading"), listOf("Books", "Technology", "Gift"), "Books"),
+      GiftCandidate("Taschen Great Painters Művészeti Díszalbum", "Taschen", 22_500, "art_book", listOf("Books", "Art", "Culture"), listOf("Books", "Creative Hobbies", "Home Decor"), "Books"),
+      GiftCandidate("Glocusent Prémium LED Olvasólámpa", "Book Haven", 9_990, "tech_accessory", listOf("Books", "Accessories"), listOf("Books", "Technology", "Home Decor"), "Books"),
+      GiftCandidate("Természetes Tölgyfa Könyvtámasz Szett", "WoodCraft", 14_490, "art_book", listOf("Books", "Home Decor"), listOf("Books", "Home Decor", "Creative Hobbies"), "Books"),
+      GiftCandidate("Klasszikus Bőrkötéses Világirodalmi Válogatás", "Helikon", 16_900, "art_book", listOf("Books", "Literature"), listOf("Books", "Gift"), "Books"),
+
+      // Home Decor & Atmosphere
+      GiftCandidate("Smart Ambient Intelligens Szabályozható Asztali Lámpa", "Philips Hue", 26_990, "tech_accessory", listOf("Home Decor", "Technology", "Lighting"), listOf("Home Decor", "Technology", "Gift"), "Home Decor"),
+      GiftCandidate("Aromaterápiás Ultrahangos Kerámia Párásító", "Design Home", 16_990, "tech_accessory", listOf("Home Decor", "Wellness"), listOf("Home Decor", "Wellness", "Technology"), "Home Decor"),
+      GiftCandidate("Természetes Szójaviasz Illatgyertya Szett Fa Kanóccal", "Candle Co.", 11_990, "coffee_kettle", listOf("Home Decor", "Wellness", "Gift"), listOf("Home Decor", "Creative Hobbies", "Gift"), "Home Decor"),
+      GiftCandidate("Skandináv Meleg Gyapjú Kézzel Szőtt Díszpléd", "Nordic Living", 18_990, "wool_cap", listOf("Home Decor", "Fashion"), listOf("Home Decor", "Gift"), "Home Decor"),
+      GiftCandidate("Marshall Emberton II Vezeték Nélküli Hangszóró", "Marshall Store", 49_990, "tech_accessory", listOf("Audio", "Home Decor", "Tech"), listOf("Home Decor", "Technology", "Audio"), "Home Decor"),
+
+      // Creative Hobbies & Art
+      GiftCandidate("Winsor & Newton Prémium Akvarell Festőkészlet", "Művészellátó", 18_900, "art_book", listOf("Creative Hobbies", "Art"), listOf("Creative Hobbies", "Art", "Gift"), "Creative Hobbies"),
+      GiftCandidate("Kézműves Bőrkötéses Vázlatfüzet & Napló", "Paper & Co.", 12_990, "art_book", listOf("Creative Hobbies", "Books"), listOf("Creative Hobbies", "Books", "Home Decor"), "Creative Hobbies"),
+      GiftCandidate("Szója Gyertyaöntő Kreatív Kezdőcsomag", "Craft Box", 13_990, "coffee_kettle", listOf("Creative Hobbies", "Home Decor"), listOf("Creative Hobbies", "Home Decor", "Gift"), "Creative Hobbies"),
+      GiftCandidate("Lamy Safari Prémium Kaligráfia Készlet", "Lamy", 15_990, "art_book", listOf("Creative Hobbies", "Writing"), listOf("Creative Hobbies", "Books", "Office"), "Creative Hobbies"),
+      GiftCandidate("Makramé Fali Dísz Készítő Komplett Csomag", "Kreatív Ház", 9_990, "art_book", listOf("Creative Hobbies", "Home Decor"), listOf("Creative Hobbies", "Home Decor"), "Creative Hobbies"),
+
+      // Technology & Audio
+      GiftCandidate("Google Pixel Buds Pro 2 Vezeték Nélküli Fülhallgató", "Google Store", 78_900, "pixel_buds", listOf("Technology", "Audio"), listOf("Technology", "Audio", "Pixel"), "Technology"),
+      GiftCandidate("Anker MagGo Qi2 Mágneses Vezeték Nélküli Töltőállomás", "Anker Store", 19_990, "tech_accessory", listOf("Technology", "Accessories"), listOf("Technology", "Home Decor"), "Technology"),
+      GiftCandidate("Xiaomi Smart Air Purifier 4 Légtisztító", "Xiaomi", 32_990, "tech_accessory", listOf("Technology", "Home"), listOf("Technology", "Home Decor", "Appliances"), "Technology"),
+      GiftCandidate("Keychron K2 Vezeték Nélküli Mechanikus Billentyűzet", "Keychron", 36_990, "tech_accessory", listOf("Technology", "Work"), listOf("Technology", "Creative Hobbies"), "Technology"),
+      GiftCandidate("Sony WH-1000XM5 Prémium Zajszűrős Fejhallgató", "Sony Center", 119_900, "tech_accessory", listOf("Technology", "Audio"), listOf("Technology", "Audio"), "Technology"),
+
+      // Gaming
+      GiftCandidate("8BitDo Ultimate Bluetooth Kontroller Dokkolóval", "Alza", 24_990, "tech_accessory", listOf("Gaming", "Tech"), listOf("Gaming", "Technology"), "Gaming"),
+      GiftCandidate("Wingspan (Fesztáv) Prémium Madaras Társasjáték", "Gémklub", 19_990, "art_book", listOf("Gaming", "Board Games"), listOf("Gaming", "Creative Hobbies", "Gift"), "Gaming"),
+      GiftCandidate("Catan Telepesei 3D Jubileumi Társasjáték", "Piatnik", 24_990, "art_book", listOf("Gaming", "Board Games"), listOf("Gaming", "Gift"), "Gaming"),
+      GiftCandidate("SteelSeries Arctis Nova 7 Gamer Headset", "SteelSeries", 54_990, "tech_accessory", listOf("Gaming", "Audio"), listOf("Gaming", "Technology", "Audio"), "Gaming"),
+
+      // Fashion & Accessories
+      GiftCandidate("Valódi Olasz Bőr Kártyatartó & Pénztárca", "Leather Goods", 13_990, "art_book", listOf("Fashion", "Accessories"), listOf("Fashion", "Gift"), "Fashion"),
+      GiftCandidate("100% Kasmír Finomkötött Téli Sál", "Cashmere Boutique", 22_990, "wool_cap", listOf("Fashion", "Clothing"), listOf("Fashion", "Gift"), "Fashion"),
+      GiftCandidate("Ray-Ban Classic Polarizált Napszemüveg", "Optic World", 44_990, "tech_accessory", listOf("Fashion", "Accessories"), listOf("Fashion", "Gift"), "Fashion"),
+
+      // Wellness & Self Care
+      GiftCandidate("Theragun Mini Ütögetős Masszázspisztoly", "Therabody", 48_900, "tech_accessory", listOf("Wellness", "Fitness"), listOf("Wellness", "Technology", "Health"), "Wellness"),
+      GiftCandidate("Rituals The Ritual of Sakura Prémium Ajándékszett", "Rituals", 17_990, "coffee_kettle", listOf("Wellness", "Beauty"), listOf("Wellness", "Gift"), "Wellness"),
+      GiftCandidate("100% Eperfaselyem Alvómaszk & Párnahuzat", "Silk Dreams", 14_990, "art_book", listOf("Wellness", "Home Decor"), listOf("Wellness", "Home Decor", "Gift"), "Wellness"),
+
+      // Cooking & Kitchen
+      GiftCandidate("Le Creuset Zománcozott Öntöttvas Sütőtál", "Le Creuset", 49_990, "coffee_kettle", listOf("Cooking", "Kitchen"), listOf("Cooking", "Kitchen", "Home Decor"), "Cooking"),
+      GiftCandidate("Wüsthof Classic Prémium Japán Szakácskés", "Késmánia", 34_990, "art_book", listOf("Cooking", "Kitchen"), listOf("Cooking", "Kitchen"), "Cooking"),
+      GiftCandidate("Microplane Professzionális Reszelő Szett", "Chef Shop", 13_990, "coffee_kettle", listOf("Cooking", "Kitchen"), listOf("Cooking", "Gift"), "Cooking"),
+
+      // Fitness & Sports
+      GiftCandidate("Manduka PROlite Prémium Jógaszőnyeg", "Yoga Corner", 24_900, "art_book", listOf("Fitness", "Wellness"), listOf("Fitness", "Wellness"), "Fitness"),
+      GiftCandidate("Hydro Flask Hőtartó Nemesacél Kulacs 946ml", "Outdoor Life", 15_990, "coffee_kettle", listOf("Fitness", "Accessories"), listOf("Fitness", "Gift"), "Fitness"),
+      GiftCandidate("Garmin Forerunner Futó és Sportóra", "Garmin", 69_900, "pixel_watch", listOf("Fitness", "Technology"), listOf("Fitness", "Technology"), "Fitness"),
     )
 
-    val availableCatalog = generatedCatalog.filter { item ->
-      !dismissed.contains(item.first) &&
-        !dismissed.contains(item.first.lowercase()) &&
-        !dismissed.contains(item.first.trim())
+    val availableCandidates = candidateCatalog.filter {
+      !isGiftDismissedOrSaved(it.title, dismissed, savedProductTitles)
+    }.shuffled().toMutableList()
+
+    val selected = mutableListOf<GiftCandidate>()
+    val shuffledInterests = interests.shuffled()
+
+    val eventLower = recipient.upcomingEventName.lowercase()
+    val isBirthday = eventLower.contains("szüli") || eventLower.contains("születés") || eventLower.contains("birthday")
+    val isAnniversary = eventLower.contains("évforduló") || eventLower.contains("anniversary") || eventLower.contains("házasság")
+    val isChristmas = eventLower.contains("karácsony") || eventLower.contains("christmas")
+    val isNameday = eventLower.contains("névnap") || eventLower.contains("nameday")
+
+    val eventPreferredCategories = when {
+      isAnniversary -> listOf("Coffee", "Home Decor", "Fashion", "Wellness", "Art")
+      isChristmas -> listOf("Home Decor", "Gaming", "Books", "Wellness", "Cooking")
+      isNameday -> listOf("Flowers", "Coffee", "Books", "Wellness")
+      isBirthday -> listOf("Technology", "Creative Hobbies", "Gaming", "Books", "Coffee", "Flowers")
+      else -> emptyList()
     }
 
-    val matching = availableCatalog.filter { item ->
-      val tags = item.third
-      tags.any { tag -> interests.any { interest -> interest.contains(tag, ignoreCase = true) || tag.contains(interest, ignoreCase = true) } }
-    }.ifEmpty { availableCatalog.shuffled().take(3) }
+    // 1. Pick candidates covering different interests from the recipient's profile, prioritizing event-appropriate items
+    for (interest in shuffledInterests) {
+      if (selected.size >= 3) break
+      val match = availableCandidates.firstOrNull { cand ->
+        val matchesInterest = cand.primaryInterest.equals(interest, ignoreCase = true) ||
+          cand.tags.any { t -> t.contains(interest, ignoreCase = true) || interest.contains(t, ignoreCase = true) } ||
+          cand.categories.any { c -> c.contains(interest, ignoreCase = true) || interest.contains(c, ignoreCase = true) }
+        val matchesEvent = eventPreferredCategories.isEmpty() || cand.categories.any { it in eventPreferredCategories }
+        matchesInterest && matchesEvent
+      } ?: availableCandidates.firstOrNull { cand ->
+        cand.primaryInterest.equals(interest, ignoreCase = true) ||
+          cand.tags.any { t -> t.contains(interest, ignoreCase = true) || interest.contains(t, ignoreCase = true) } ||
+          cand.categories.any { c -> c.contains(interest, ignoreCase = true) || interest.contains(c, ignoreCase = true) }
+      }
+      if (match != null) {
+        selected.add(match)
+        availableCandidates.remove(match)
+      }
+    }
 
-    val selected = matching.shuffled().take(3)
+    // 2. If fewer than 3, pick from remaining available candidates matching any interest
+    if (selected.size < 3) {
+      val anyMatch = availableCandidates.filter { cand ->
+        interests.isEmpty() || cand.tags.any { t -> interests.any { i -> i.contains(t, ignoreCase = true) || t.contains(i, ignoreCase = true) } }
+      }
+      for (cand in anyMatch) {
+        if (selected.size >= 3) break
+        selected.add(cand)
+        availableCandidates.remove(cand)
+      }
+    }
+
+    // 3. If still fewer than 3, pick from whatever is available in catalog that is not dismissed or saved
+    if (selected.size < 3) {
+      for (cand in availableCandidates) {
+        if (selected.size >= 3) break
+        selected.add(cand)
+      }
+    }
+
+    // 4. If catalog ran out for this person's custom interests, synthesize dynamic custom recommendations
+    if (selected.size < 3 && interests.isNotEmpty()) {
+      for (interest in shuffledInterests) {
+        if (selected.size >= 3) break
+        val synthTitle = "${interest.replaceFirstChar { it.uppercase() }} Prémium Ajándékválogatás"
+        if (!isGiftDismissedOrSaved(synthTitle, dismissed, savedProductTitles) && selected.none { it.title == synthTitle }) {
+          selected.add(
+            GiftCandidate(
+              title = synthTitle,
+              store = "WishDrop AI Verified",
+              priceHuf = 16_990,
+              imageKey = "art_book",
+              categories = listOf(interest, "Gift"),
+              tags = listOf(interest, "Personalized", "Gift"),
+              primaryInterest = interest,
+            )
+          )
+        }
+      }
+    }
+
     selected.forEach { item ->
       val recId = "ai_rec_${UUID.randomUUID().toString().take(6)}"
+      val matchingLabel = if (item.primaryInterest.isNotBlank()) item.primaryInterest else interests.joinToString(", ").ifBlank { "Személyes preferenciák" }
+      val eventReason = when {
+        isBirthday -> "${recipient.name} születésnapjára, a(z) $matchingLabel iránti érdeklődése alapján személyre szabott meglepetésként ajánlva."
+        isAnniversary -> "${recipient.name} évfordulójára különleges, elegáns meglepetésként ($matchingLabel) AI mélyelemzéssel ajánlva."
+        isChristmas -> "${recipient.name} karácsonyi meglepetéseként a fa alá, a(z) $matchingLabel témakörben AI által válogatva."
+        isNameday -> "${recipient.name} névnapjára figyelmes meglepetésként ($matchingLabel) AI által ajánlva."
+        else -> "${recipient.name} részére a(z) ${recipient.upcomingEventName} alkalmából, $matchingLabel érdeklődése alapján ajánlva."
+      }
       recommendationDao.upsertRecommendation(
         RecommendationEntity(
           id = recId,
           recipientId = recipientId,
-          title = item.first,
-          store = "WishDrop AI Verified",
-          priceHuf = item.second.coerceAtMost(budget),
-          imageKey = if (item.first.contains("LEGO")) "lego_bonsai" else if (item.first.contains("Pixel")) "pixel_buds" else "art_book",
-          matchPercentage = (88..99).random(),
-          reason = "${recipient.name} profilja (${interests.joinToString(", ").ifBlank { "Személyes preferenciák" }}) alapján AI mélyelemzéssel ajánlva.",
-          categoriesJson = repositoryJson.encodeToString(item.third),
-          tagsJson = repositoryJson.encodeToString(interests + item.third),
+          title = item.title,
+          store = item.store,
+          priceHuf = item.priceHuf.coerceAtMost(budget),
+          imageKey = item.imageKey,
+          matchPercentage = (91..99).random(),
+          reason = eventReason,
+          categoriesJson = repositoryJson.encodeToString(item.categories),
+          tagsJson = repositoryJson.encodeToString(interests + item.tags),
           linkedProductId = null,
         )
       )

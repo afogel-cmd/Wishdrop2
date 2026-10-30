@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -141,6 +144,8 @@ fun WishlistRouteScreen(
     onOpenProductDetails = onOpenProductDetails,
     onSwipePurchased = viewModel::markPurchasedBySwipe,
     onSwipeArchive = viewModel::markArchivedBySwipe,
+    onDeleteProduct = viewModel::deleteProduct,
+    onUnarchiveProduct = viewModel::unarchiveProduct,
     onOpenAddProduct = onOpenAddProduct,
     onAssignSharedList = viewModel::assignProductToSharedList,
   )
@@ -160,6 +165,8 @@ fun WishlistScreen(
   onSwipePurchased: (Product) -> Unit,
   onSwipeArchive: (Product) -> Unit,
   onOpenAddProduct: (String) -> Unit,
+  onDeleteProduct: (String) -> Unit = {},
+  onUnarchiveProduct: (String) -> Unit = {},
   onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
 ) {
@@ -209,6 +216,8 @@ fun WishlistScreen(
           onOpenProductDetails = onOpenProductDetails,
           onSwipePurchased = onSwipePurchased,
           onSwipeArchive = onSwipeArchive,
+          onDeleteProduct = onDeleteProduct,
+          onUnarchiveProduct = onUnarchiveProduct,
           onAssignSharedList = onAssignSharedList,
           modifier = Modifier.padding(innerPadding),
         )
@@ -228,6 +237,8 @@ private fun WishlistLoadedContent(
   onOpenProductDetails: (String) -> Unit,
   onSwipePurchased: (Product) -> Unit,
   onSwipeArchive: (Product) -> Unit,
+  onDeleteProduct: (String) -> Unit = {},
+  onUnarchiveProduct: (String) -> Unit = {},
   onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
 ) {
@@ -335,9 +346,15 @@ private fun WishlistLoadedContent(
         }
 
         item(key = "items_header", contentType = "section_header") {
+          val swipeHint =
+            if (state.selectedFilter == "Archived") {
+              "Húzd balra a törléshez • Jobbra a visszaállításhoz • vagy használd a ︙ menüt"
+            } else {
+              stringResource(R.string.wishlist_swipe_hint)
+            }
           ExpressiveSectionHeader(
             title = stringResource(R.string.wishlist_items_header, state.filteredProducts.size),
-            subtitle = stringResource(R.string.wishlist_swipe_hint),
+            subtitle = swipeHint,
           )
         }
 
@@ -363,6 +380,8 @@ private fun WishlistLoadedContent(
               onClick = { onOpenProductDetails(product.id) },
               onSwipePurchased = { onSwipePurchased(product) },
               onSwipeArchive = { onSwipeArchive(product) },
+              onDeleteProduct = { onDeleteProduct(product.id) },
+              onUnarchiveProduct = { onUnarchiveProduct(product.id) },
               onAssignSharedList = onAssignSharedList,
             )
           }
@@ -441,11 +460,18 @@ private fun SwipeableWishlistProductItem(
   onClick: () -> Unit,
   onSwipePurchased: () -> Unit,
   onSwipeArchive: () -> Unit,
+  onDeleteProduct: () -> Unit,
+  onUnarchiveProduct: () -> Unit,
   onAssignSharedList: (productId: String, sharedListId: String?) -> Unit,
 ) {
   var showSharedListDialog by rememberSaveable { mutableStateOf(false) }
+  var showDeleteConfirmDialog by rememberSaveable { mutableStateOf(false) }
+  var showOptionsMenu by remember { mutableStateOf(false) }
+
   val purchasedLabel = stringResource(R.string.swipe_purchased_label)
   val archiveLabel = stringResource(R.string.swipe_archive_label)
+  val deleteLabel = "Törlés"
+  val restoreLabel = "Visszaállítás"
   val assignedList = remember(product.sharedListId, sharedLists) {
     sharedLists.firstOrNull { it.id == product.sharedListId }
   }
@@ -455,12 +481,21 @@ private fun SwipeableWishlistProductItem(
       confirmValueChange = { value ->
         when (value) {
           SwipeToDismissBoxValue.StartToEnd -> {
-            onSwipePurchased()
+            if (product.isArchived) {
+              onUnarchiveProduct()
+            } else {
+              onSwipePurchased()
+            }
             true
           }
           SwipeToDismissBoxValue.EndToStart -> {
-            onSwipeArchive()
-            true
+            if (product.isArchived) {
+              showDeleteConfirmDialog = true
+              false
+            } else {
+              onSwipeArchive()
+              true
+            }
           }
           SwipeToDismissBoxValue.Settled -> false
         }
@@ -475,12 +510,17 @@ private fun SwipeableWishlistProductItem(
       val bgColor =
         when (direction) {
           SwipeToDismissBoxValue.StartToEnd -> WishDropDesign.colors.savingsContainer
-          SwipeToDismissBoxValue.EndToStart -> WishDropDesign.colors.coralContainer
+          SwipeToDismissBoxValue.EndToStart ->
+            if (product.isArchived) MaterialTheme.colorScheme.errorContainer
+            else WishDropDesign.colors.coralContainer
           SwipeToDismissBoxValue.Settled -> Color.Transparent
         }
       val fgColor =
-        if (isRight) WishDropDesign.colors.onSavingsContainer
-        else WishDropDesign.colors.onCoralContainer
+        when {
+          isRight -> WishDropDesign.colors.onSavingsContainer
+          product.isArchived -> MaterialTheme.colorScheme.onErrorContainer
+          else -> WishDropDesign.colors.onCoralContainer
+        }
 
       Box(
         modifier =
@@ -496,12 +536,24 @@ private fun SwipeableWishlistProductItem(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
           ) {
             Icon(
-              imageVector = if (isRight) WishDropIcons.CheckCircle else WishDropIcons.Archive,
+              imageVector =
+                when {
+                  isRight && product.isArchived -> WishDropIcons.Refresh
+                  isRight -> WishDropIcons.CheckCircle
+                  product.isArchived -> WishDropIcons.Delete
+                  else -> WishDropIcons.Archive
+                },
               contentDescription = null,
               tint = fgColor,
             )
             Text(
-              text = if (isRight) purchasedLabel else archiveLabel,
+              text =
+                when {
+                  isRight && product.isArchived -> restoreLabel
+                  isRight -> purchasedLabel
+                  product.isArchived -> deleteLabel
+                  else -> archiveLabel
+                },
               style = MaterialTheme.typography.titleSmall,
               fontWeight = FontWeight.Bold,
               color = fgColor,
@@ -519,12 +571,12 @@ private fun SwipeableWishlistProductItem(
           .semantics {
             customActions =
               listOf(
-                CustomAccessibilityAction(purchasedLabel) {
-                  onSwipePurchased()
+                CustomAccessibilityAction(if (product.isArchived) restoreLabel else purchasedLabel) {
+                  if (product.isArchived) onUnarchiveProduct() else onSwipePurchased()
                   true
                 },
-                CustomAccessibilityAction(archiveLabel) {
-                  onSwipeArchive()
+                CustomAccessibilityAction(if (product.isArchived) deleteLabel else archiveLabel) {
+                  if (product.isArchived) showDeleteConfirmDialog = true else onSwipeArchive()
                   true
                 },
               )
@@ -618,21 +670,114 @@ private fun SwipeableWishlistProductItem(
               }
             }
 
-            IconButton(
-              onClick = { showSharedListDialog = true },
-              modifier = Modifier.size(32.dp).testTag("wishlist_assign_shared_list_${product.id}"),
-            ) {
-              Icon(
-                imageVector = WishDropIcons.Add,
-                contentDescription = "Hozzáadás megosztott listához",
-                tint = if (product.sharedListId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-              )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              IconButton(
+                onClick = { showSharedListDialog = true },
+                modifier = Modifier.size(32.dp).testTag("wishlist_assign_shared_list_${product.id}"),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.Add,
+                  contentDescription = "Hozzáadás megosztott listához",
+                  tint = if (product.sharedListId != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.size(20.dp),
+                )
+              }
+
+              Box {
+                IconButton(
+                  onClick = { showOptionsMenu = true },
+                  modifier = Modifier.size(32.dp).testTag("wishlist_item_menu_${product.id}"),
+                ) {
+                  Icon(
+                    imageVector = WishDropIcons.MoreVert,
+                    contentDescription = "További műveletek",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                  )
+                }
+
+                DropdownMenu(
+                  expanded = showOptionsMenu,
+                  onDismissRequest = { showOptionsMenu = false },
+                ) {
+                  if (product.isArchived) {
+                    DropdownMenuItem(
+                      text = { Text("Visszaállítás az aktívak közé") },
+                      leadingIcon = {
+                        Icon(WishDropIcons.Refresh, contentDescription = null)
+                      },
+                      onClick = {
+                        showOptionsMenu = false
+                        onUnarchiveProduct()
+                      },
+                    )
+                  } else {
+                    DropdownMenuItem(
+                      text = { Text("Archiválás") },
+                      leadingIcon = {
+                        Icon(WishDropIcons.Archive, contentDescription = null)
+                      },
+                      onClick = {
+                        showOptionsMenu = false
+                        onSwipeArchive()
+                      },
+                    )
+                  }
+
+                  DropdownMenuItem(
+                    text = {
+                      Text(
+                        "Törlés",
+                        color = MaterialTheme.colorScheme.error,
+                      )
+                    },
+                    leadingIcon = {
+                      Icon(
+                        WishDropIcons.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                      )
+                    },
+                    onClick = {
+                      showOptionsMenu = false
+                      showDeleteConfirmDialog = true
+                    },
+                  )
+                }
+              }
             }
           }
         }
       }
     }
+  }
+
+  if (showDeleteConfirmDialog) {
+    AlertDialog(
+      onDismissRequest = { showDeleteConfirmDialog = false },
+      title = { Text("Termék törlése") },
+      text = {
+        Text("Biztosan törölni szeretnéd a(z) \"${product.title}\" terméket a kívánságlistádról?")
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showDeleteConfirmDialog = false
+            onDeleteProduct()
+          },
+          colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.error
+          ),
+        ) {
+          Text("Törlés")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDeleteConfirmDialog = false }) {
+          Text("Mégse")
+        }
+      },
+    )
   }
 
   if (showSharedListDialog) {

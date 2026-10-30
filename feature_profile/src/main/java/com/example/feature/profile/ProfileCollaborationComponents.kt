@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -332,30 +333,56 @@ internal fun PendingInvitationsSection(
           color = MaterialTheme.colorScheme.surfaceContainer,
           modifier = Modifier.fillMaxWidth().testTag("profile_invite_${invite.id}"),
         ) {
-          Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+          Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
           ) {
-            Icon(
-              imageVector = WishDropIcons.Mail,
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-              Text(text = invite.listTitle, style = MaterialTheme.typography.titleSmall)
-              Text(
-                text = "From ${invite.inviterName} • ${invite.proposedRole.label}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+              Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(40.dp),
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Icon(
+                    imageVector = WishDropIcons.Mail,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp),
+                  )
+                }
+              }
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = invite.listTitle,
+                  style = MaterialTheme.typography.titleMedium,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                  text = "Meghívó tőle: ${invite.inviterName} • ${invite.proposedRole.label}",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis,
+                )
+              }
             }
             FilledTonalButton(
               onClick = { onAcceptInvitation(invite.id) },
               modifier =
-                Modifier.minimumInteractiveComponentSize()
+                Modifier.fillMaxWidth()
                   .testTag("profile_accept_invite_${invite.id}"),
             ) {
+              Icon(
+                imageVector = WishDropIcons.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+              )
+              Spacer(Modifier.width(8.dp))
               Text(stringResource(R.string.profile_accept_join))
             }
           }

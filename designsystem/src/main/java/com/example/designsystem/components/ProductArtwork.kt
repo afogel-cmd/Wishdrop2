@@ -62,6 +62,7 @@ fun WishProductArtwork(
   val isNetworkOrLocalUrl = remember(imageKey) {
     imageKey.startsWith("http://") ||
       imageKey.startsWith("https://") ||
+      imageKey.startsWith("//") ||
       imageKey.startsWith("content://") ||
       imageKey.startsWith("file://") ||
       imageKey.startsWith("/")
@@ -78,11 +79,24 @@ fun WishProductArtwork(
         )
       }
       isNetworkOrLocalUrl -> {
-        val imageRequest = remember(imageKey) {
+        val safeImageUrl = remember(imageKey) {
+          if (imageKey.startsWith("//")) "https:$imageKey" else imageKey
+        }
+        val imageRequest = remember(safeImageUrl) {
           ImageRequest.Builder(context)
-            .data(imageKey)
+            .data(safeImageUrl)
             .crossfade(true)
-            .allowHardware(false)
+            .listener(
+              onStart = {
+                android.util.Log.d("WishProductArtwork", "Coil loading: $safeImageUrl")
+              },
+              onSuccess = { _, _ ->
+                android.util.Log.d("WishProductArtwork", "Coil loaded: $safeImageUrl")
+              },
+              onError = { _, result ->
+                android.util.Log.e("WishProductArtwork", "Coil error for $safeImageUrl: ${result.throwable.message}", result.throwable)
+              }
+            )
             .build()
         }
         SubcomposeAsyncImage(
@@ -107,7 +121,33 @@ fun WishProductArtwork(
 
 @Composable
 private fun StudioIllustrationBackdrop(imageKey: String, title: String) {
-  val spec = remember(imageKey) { studioSpecFor(imageKey) }
+  val resolvedKey = remember(imageKey, title) {
+    if (imageKey == "art_book" || imageKey == "default" || imageKey.isBlank() || imageKey.startsWith("http")) {
+      val normalized = title.lowercase()
+        .replace("á", "a")
+        .replace("é", "e")
+        .replace("í", "i")
+        .replace("ó", "o")
+        .replace("ö", "o")
+        .replace("ő", "o")
+        .replace("ú", "u")
+        .replace("ü", "u")
+        .replace("ű", "u")
+      when {
+        normalized.contains("szaritogep") || normalized.contains("mosogep") || normalized.contains("dryer") || normalized.contains("washer") || normalized.contains("bosch") || normalized.contains("hoszivattyus") -> "dryer"
+        normalized.contains("buds") || normalized.contains("fulhallgato") -> "pixel_buds"
+        normalized.contains("watch") || normalized.contains("okosora") -> "pixel_watch"
+        normalized.contains("bonsai") -> "lego_bonsai"
+        normalized.contains("orchid") -> "lego_orchid"
+        normalized.contains("nothing") -> "nothing_ear"
+        normalized.contains("coffee") || normalized.contains("kettle") || normalized.contains("kave") -> "coffee_kettle"
+        else -> imageKey
+      }
+    } else {
+      imageKey
+    }
+  }
+  val spec = remember(resolvedKey) { studioSpecFor(resolvedKey) }
   Box(
     modifier =
       Modifier.fillMaxSize()
@@ -233,6 +273,16 @@ private fun studioSpecFor(imageKey: String): StudioArtSpec =
         accentGlow = Color(0xFF5C7CFA),
         iconTint = Color(0xFF233876),
         icon = WishDropIcons.Accessory,
+      )
+    "dryer",
+    "washer",
+    "appliance" ->
+      StudioArtSpec(
+        bgStart = Color(0xFFE8F0FE),
+        bgEnd = Color(0xFFD2E3FC),
+        accentGlow = Color(0xFF4285F4),
+        iconTint = Color(0xFF1967D2),
+        icon = WishDropIcons.Washer,
       )
     else ->
       StudioArtSpec(

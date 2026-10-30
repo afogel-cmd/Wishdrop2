@@ -26,6 +26,18 @@
     <string name="dialog_quick_add_store">Store</string>
     <string name="dialog_quick_add_price">Price (HUF)</string>
     <string name="dialog_role_title">Update Member Role</string>
+    <string name="dialog_member_role_title">Change Role for %1$s</string>
+    <string name="dialog_remove_member">Remove from List</string>
+    <string name="dialog_edit_list_title">Edit Shared List</string>
+    <string name="dialog_delete_list_title">Delete Shared List</string>
+    <string name="dialog_delete_list_desc">Are you sure you want to delete \"%1$s\"? This will remove the list for all collaborators.</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="shared_list_visibility_private">Private</string>
+    <string name="shared_list_visibility_shared">Shared</string>
+    <string name="shared_list_visibility_hidden">Hidden • Secret Gift</string>
+    <string name="shared_list_visibility_owner_only">Owner Only</string>
+    <string name="shared_list_edit_button">Edit list</string>
+    <string name="shared_list_delete_button">Delete list</string>
+    <string name="shared_list_dialog_delete_confirm">Delete</string>
 </resources>

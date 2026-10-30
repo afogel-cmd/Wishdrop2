@@ -44,6 +44,9 @@ interface ProductDao {
   @Query("SELECT * FROM products WHERE recipientId = :recipientId AND isArchived = 0 ORDER BY createdAtMillis DESC")
   fun observeProductsForRecipient(recipientId: String): Flow<List<ProductEntity>>
 
+  @Query("SELECT * FROM products WHERE recipientId = :recipientId AND isArchived = 0")
+  suspend fun getProductsForRecipientSnapshot(recipientId: String): List<ProductEntity>
+
   @Query("SELECT * FROM products")
   suspend fun getAllSnapshot(): List<ProductEntity>
 
@@ -88,6 +91,9 @@ interface ProductDao {
 
   @Query("UPDATE products SET sharedListId = NULL WHERE sharedListId = :listId")
   suspend fun clearSharedListFromProducts(listId: String)
+
+  @Query("DELETE FROM products WHERE id = :productId")
+  suspend fun deleteProduct(productId: String)
 
   @Query("DELETE FROM products")
   suspend fun clearAll()
@@ -245,6 +251,9 @@ interface UserAndFamilyDao {
   @Query("SELECT * FROM family_members WHERE LOWER(email) = LOWER(:email) LIMIT 1")
   suspend fun getFamilyMemberByEmail(email: String): FamilyMemberEntity?
 
+  @Query("SELECT * FROM users WHERE LOWER(email) = LOWER(:email) LIMIT 1")
+  suspend fun getUserByEmail(email: String): UserEntity?
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun upsertUsers(users: List<UserEntity>)
 
@@ -392,6 +401,9 @@ interface RecommendationDao {
 
   @Query("DELETE FROM recommendations WHERE recipientId = :recipientId")
   suspend fun deleteRecommendationsForRecipient(recipientId: String)
+
+  @Query("DELETE FROM recommendations WHERE recipientId = :recipientId AND linkedProductId IS NULL")
+  suspend fun deleteUnsavedRecommendationsForRecipient(recipientId: String)
 
   @Query("DELETE FROM recommendations")
   suspend fun clearAll()

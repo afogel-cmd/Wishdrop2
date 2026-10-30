@@ -153,4 +153,12 @@ constructor(
       manageWishlistItem.addProductPhoto(current.id, photoUrl)
     }
   }
+
+  fun deleteProduct(onDeleted: () -> Unit) {
+    val current = (uiState.value as? ProductDetailsUiState.Success)?.product ?: return
+    viewModelScope.launch {
+      manageWishlistItem.deleteProduct(current.id)
+      onDeleted()
+    }
+  }
 }

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_title">Profil</string>
+    <string name="profile_edit">Szerkesztés</string>
+    <string name="profile_active_viewer_title">Aktív Családi Nézet (Titkos Ajándék Pajzs)</string>
+    <string name="profile_active_viewer_sub">Válts profilt, hogy lásd, a titkos ajándékok hogyan rejtőznek el automatikusan</string>
+    <string name="profile_cloud_sync_title">Felhő &amp; Szinkronizáció</string>
+    <string name="profile_cloud_sign_in">Bejelentkezés</string>
+    <string name="profile_cloud_sign_up">Fiók létrehozása</string>
+    <string name="profile_cloud_sign_out">Kijelentkezés</string>
+    <string name="profile_cloud_password">Jelszó</string>
+    <string name="profile_pending_invites_title">Függő Listameghívások</string>
+    <string name="profile_pending_invites_sub">Fogadd el a családtagok közös kívánságlista meghívásait</string>
+    <string name="profile_accept_join">Elfogadás és Csatlakozás</string>
+    <string name="profile_family_members">Családtagok</string>
+    <string name="profile_family_sub">Koppints egy családtagra az Ajándék Segéd megnyitásához</string>
+    <string name="profile_family_empty_title">Még nincsenek családtagok</string>
+    <string name="profile_family_empty_desc">Adj hozzá személyeket a születésnapok és évfordulók szervezéséhez.</string>
+    <string name="profile_theme_section">Téma megjelenés</string>
+    <string name="profile_language_section">Nyelv / Language</string>
+    <string name="profile_dynamic_color">Material You Dinamikus színek</string>
+    <string name="profile_dynamic_color_sub">Igazodás a háttérkép színeihez</string>
+    <string name="profile_notifications_section">Értesítések</string>
+    <string name="profile_price_alerts">Árcsökkenés értesítések</string>
+    <string name="profile_event_reminders">Közelgő esemény emlékeztetők</string>
+    <string name="profile_ai_section">AI Beállítások</string>
+    <string name="profile_ai_auto_cat">Automatikus termékkategorizálás</string>
+    <string name="profile_ai_recipient">Intelligens címzettfelismerés</string>
+    <string name="profile_ai_confidence">Találati megbízhatósági küszöb: %1$d%%</string>
+    <string name="profile_data_section">Adatok és mentés</string>
+    <string name="profile_export_data">Adatok exportálása (JSON)</string>
+    <string name="profile_import_data">Adatok importálása (JSON)</string>
+    <string name="profile_account_section">Fiók</string>
+    <string name="profile_vault_status">Offline-First Helyi Adattár + Felhő szinkron kész</string>
+    <string name="profile_reset_catalog">Alapértelmezett katalógus visszaállítása</string>
+    <string name="dialog_edit_profile">Profil szerkesztése</string>
+    <string name="dialog_display_name">Megjelenített név</string>
+    <string name="dialog_email">E-mail cím</string>
+    <string name="action_save">Mentés</string>
+    <string name="action_cancel">Mégse</string>
+</resources>

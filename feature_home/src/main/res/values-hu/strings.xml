@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_brand_title">WishDrop</string>
+    <string name="home_tagline">Mentsd el. Rendszerezd. Oszd meg. Ajándékozz okosabban.</string>
+    <string name="cd_home_search">Keresés a kívánságlistában</string>
+    <string name="cd_home_profile">Profil megnyitása</string>
+    <string name="hero_badge_ai">AI Intelligens Vezérlőpult</string>
+    <string name="hero_active_wishes">%1$d Aktív Kívánság</string>
+    <string name="hero_shared_lists">%1$d Közös Lista</string>
+    <string name="hero_upcoming_events">%1$d Közelgő Esemény</string>
+    <string name="hero_potential_savings_label">Várható megtakarítás</string>
+    <string name="section_quick_actions">Gyors műveletek</string>
+    <string name="action_add_product">Termék hozzáadása</string>
+    <string name="action_scan_product">Vonalkód olvasása</string>
+    <string name="action_find_gift">Ajándék keresése</string>
+    <string name="action_search">Keresés</string>
+    <string name="section_shared_lists">Közös Listák</string>
+    <string name="section_shared_lists_sub">Valós idejű családi kívánságlisták és titkos ajándéktáblák</string>
+    <string name="action_create_list">+ Új Lista</string>
+    <string name="shared_list_items_count">%1$d termék</string>
+    <string name="shared_list_secret_badge">Titkos • Rejtve előle: %1$s</string>
+    <string name="create_list_dialog_title">Közös lista létrehozása</string>
+    <string name="create_list_title_label">Lista neve</string>
+    <string name="create_list_title_placeholder">Nyári nyaralás ajándékai</string>
+    <string name="create_list_subtitle_label">Leírás</string>
+    <string name="create_list_subtitle_placeholder">Családi ajándékötletek és koordináció</string>
+    <string name="create_list_emoji_label">Ikon Emoji</string>
+    <string name="create_list_secret_toggle">Titkos ajándék mód (Elrejtés családtag elől)</string>
+    <string name="create_list_cancel">Mégse</string>
+    <string name="create_list_confirm">Lista létrehozása</string>
+    <string name="section_todays_recommendations">Mai Ajánlatok</string>
+    <string name="section_todays_recommendations_sub">AI által figyelt leárazások</string>
+    <string name="action_see_all">Mindegyik</string>
+    <string name="section_upcoming_events">Közelgő Események</string>
+    <string name="section_upcoming_events_sub">Tervezz figyelmes ajándékokat időben</string>
+    <string name="event_days_remaining">%1$d nap</string>
+    <string name="event_saved_ideas_count">%1$d ajándékötlet elmentve</string>
+    <string name="home_empty_title">A WishDrop táblád még üres</string>
+    <string name="home_empty_subtitle">Illessz be egy terméklinket vagy olvass be egy vonalkódot a leárazások követéséhez.</string>
+</resources>

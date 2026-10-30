@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wishlist_title">Kívánságlista</string>
+    <string name="wishlist_search_placeholder">Keresés termékek, boltok, címkék vagy személyek között…</string>
+    <string name="cd_clear_search">Keresés törlése</string>
+    <string name="wishlist_smart_collections">Okos Gyűjtemények</string>
+    <string name="wishlist_collection_count">%1$d termék</string>
+    <string name="wishlist_items_header">Mentett Termékek (%1$d)</string>
+    <string name="wishlist_swipe_hint">Húzd jobbra a megvásárolthoz • Húzd balra az archiváláshoz</string>
+    <string name="wishlist_empty_title">Nincs egyező kívánság</string>
+    <string name="wishlist_empty_subtitle">Törölj egy szűrőt vagy koppints a + gombra egy új termék hozzáadásához.</string>
+    <string name="swipe_purchased_label">Megvásárolva</string>
+    <string name="swipe_archive_label">Archiválás</string>
+    <string name="fab_add_product">Kívánság hozzáadása</string>
+    <string name="fab_close_menu">Menü bezárása</string>
+    <string name="fab_add_link">Link hozzáadása</string>
+    <string name="fab_manual_product">Kézi felvitel</string>
+    <string name="fab_barcode_scan">Vonalkód olvasó</string>
+    <string name="snackbar_undo">Visszavonás</string>
+    <string name="filter_all">Összes</string>
+    <string name="filter_purchased">Megvásárolt</string>
+    <string name="filter_archived">Archivált</string>
+</resources>

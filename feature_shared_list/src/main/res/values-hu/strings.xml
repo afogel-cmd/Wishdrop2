@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shared_list_back">Vissza</string>
+    <string name="shared_list_invite">Meghívás</string>
+    <string name="shared_list_add_idea">Kívánság hozzáadása</string>
+    <string name="shared_list_realtime_live">Élő szinkronizáció</string>
+    <string name="shared_list_items_badge">%1$d termék</string>
+    <string name="shared_list_secret_shield_title">Titkos Ajándék Pajzs Aktív</string>
+    <string name="shared_list_secret_shield_desc">Rejtve előle: %1$s — a termékek, megjegyzések és aktivitások sosem szinkronizálódnak az ő eszközére</string>
+    <string name="shared_list_visibility_section">Láthatóság és Védelem</string>
+    <string name="shared_list_members_title">Közreműködők</string>
+    <string name="shared_list_members_sub">Érintsd meg a jogosultságok módosításához</string>
+    <string name="shared_list_pending_invites">Függő Meghívások</string>
+    <string name="shared_list_accept_join">Elfogadás és Csatlakozás</string>
+    <string name="shared_list_products_title">Közös Termékek</string>
+    <string name="shared_list_products_empty_title">Még nincsenek termékek ebben a listában</string>
+    <string name="shared_list_products_empty_desc">Adj hozzá egy ajándékötletet a családdal való közös tervezéshez.</string>
+    <string name="shared_list_activity_title">Aktivitási Hírfolyam</string>
+    <string name="shared_list_activity_sub">Élő közös idővonal</string>
+    <string name="shared_list_hidden_empty_title">A közös lista nem érhető el</string>
+    <string name="shared_list_hidden_empty_desc">Ez a lista privát, vagy a Titkos Ajándék Pajzs elrejtette a jelenlegi fiók elől.</string>
+    <string name="dialog_invite_title">Közreműködő meghívása</string>
+    <string name="dialog_invite_email">Közreműködő e-mail címe</string>
+    <string name="dialog_invite_send">Meghívó küldése</string>
+    <string name="dialog_quick_add_title">Kívánság hozzáadása közös listához</string>
+    <string name="dialog_quick_add_name">Termék neve</string>
+    <string name="dialog_quick_add_store">Bolt</string>
+    <string name="dialog_quick_add_price">Ár (Ft)</string>
+    <string name="dialog_role_title">Jogosultság módosítása</string>
+    <string name="dialog_member_role_title">Jogosultság módosítása: %1$s</string>
+    <string name="dialog_remove_member">Eltávolítás a listából</string>
+    <string name="dialog_edit_list_title">Közös lista szerkesztése</string>
+    <string name="dialog_delete_list_title">Közös lista törlése</string>
+    <string name="dialog_delete_list_desc">Biztosan törölni szeretnéd a(z) \"%1$s\" listát? Ez minden résztvevőnél törli azt.</string>
+    <string name="action_save">Mentés</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="shared_list_visibility_private">Privát</string>
+    <string name="shared_list_visibility_shared">Közös</string>
+    <string name="shared_list_visibility_hidden">Titkos • Meglepetés ajándék</string>
+    <string name="shared_list_visibility_owner_only">Csak tulajdonos</string>
+    <string name="shared_list_edit_button">Lista szerkesztése</string>
+    <string name="shared_list_delete_button">Lista törlése</string>
+    <string name="shared_list_dialog_delete_confirm">Törlés</string>
+</resources>

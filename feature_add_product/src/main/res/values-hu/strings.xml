@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="add_title">Hozzáadás a WishDrop-hoz</string>
+    <string name="add_back">Vissza</string>
+    <string name="mode_url">Link Beillesztése</string>
+    <string name="mode_manual">Kézi Bevitel</string>
+    <string name="mode_barcode">Vonalkód Olvasó</string>
+    <string name="url_label">Termék Linkje</string>
+    <string name="url_placeholder">https://www.mediamarkt.hu/product/…</string>
+    <string name="url_quick_samples">Gyors próbalinkek</string>
+    <string name="action_analyze_ai">Elemzés AI-val</string>
+    <string name="manual_name_label">Termék Neve</string>
+    <string name="manual_store_label">Bolt Neve</string>
+    <string name="manual_price_label">Ár (Ft)</string>
+    <string name="manual_notes_label">Jegyzet vagy ajándék ötlet</string>
+    <string name="barcode_camera_title">Élő Vonalkód Olvasó</string>
+    <string name="barcode_grant_camera">Kamera Engedélyezése</string>
+    <string name="barcode_manual_label">Vagy írd be az EAN / UPC kódot</string>
+    <string name="barcode_presets_label">Azonnali próba EAN kódok</string>
+    <string name="review_title">AI Elemzés Ellenőrzése</string>
+    <string name="review_subtitle">Módosíts bármilyen mezőt a kívánságlistához mentés előtt</string>
+    <string name="review_categories">Felismert Kategóriák</string>
+    <string name="review_tags">Felismert Címkék</string>
+    <string name="review_add_tag">+ Címke</string>
+    <string name="review_recipient">Észlelt Címzett</string>
+    <string name="review_alternatives">Talált AI Alternatívák</string>
+    <string name="review_save_button">Mentés a WishDrop-ba</string>
+    <string name="review_start_over">Újrakezdés</string>
+    <string name="dialog_add_tag_title">Egyedi Címke Hozzáadása</string>
+    <string name="action_add">Hozzáadás</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="add_error_extraction">Nem sikerült elemezni a termék adatait. Kérjük, próbáld újra.</string>
+</resources>

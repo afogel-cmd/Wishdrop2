@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WishDrop</string>
+    <string name="app_tagline">Mentsd el. Rendszerezd. Oszd meg. Ajándékozz okosabban.</string>
+    <string name="nav_home">Kezdőlap</string>
+    <string name="nav_gift_assistant">Ajándékok</string>
+    <string name="nav_wishlist">Kívánságok</string>
+    <string name="nav_insights">Statisztika</string>
+    <string name="nav_profile">Profil</string>
+</resources>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gift_title">Ajándék Segéd</string>
+    <string name="gift_subtitle">AI által válogatott ötletek és folyamatkövetés mindenkinek, akit szeretsz</string>
+    <string name="gift_add_person">Személy hozzáadása</string>
+    <string name="gift_event_days">%1$s • %2$d nap</string>
+    <string name="gift_progress_title">Ajándékozási Folyamat</string>
+    <string name="gift_progress_subtitle">Érintsd meg a státusz frissítéséhez</string>
+    <string name="gift_interests_title">Érdeklődési Profil</string>
+    <string name="gift_interests_subtitle">AI által észlelt és testreszabható preferenciák</string>
+    <string name="gift_add_interest">+ Új Hobbi</string>
+    <string name="gift_saved_ideas_title">Mentett Ötletek</string>
+    <string name="gift_saved_ideas_empty">Még nincsenek mentett ötletek %1$s számára — ments el egy AI ajánlást lent!</string>
+    <string name="gift_ai_recommendations_title">AI Ajánlások</string>
+    <string name="gift_ai_recommendations_sub">%1$s érdeklődési köreihez és a kerethez igazítva</string>
+    <string name="gift_save_to_wishlist">Mentés a listába</string>
+    <string name="gift_view_in_wishlist">Ötlet megtekintése</string>
+    <string name="dialog_add_interest_title">Érdeklődési kör hozzáadása</string>
+    <string name="dialog_interest_hint">pl. Kerámia, Bakelitlemez, Jóga</string>
+    <string name="dialog_add_person_title">Családtag vagy barát felvétele</string>
+    <string name="dialog_person_name">Név</string>
+    <string name="dialog_person_relation">Kapcsolat (pl. Partner, Gyerek)</string>
+    <string name="dialog_person_event">Következő esemény (pl. Születésnap)</string>
+    <string name="dialog_person_days">Napok az eseményig</string>
+    <string name="dialog_person_interests">Érdeklődési körök</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_save">Mentés</string>
+</resources>

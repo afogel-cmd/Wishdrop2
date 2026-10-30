@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="insights_title">Statisztika</string>
+    <string name="insights_subtitle">Intelligens árkövetés és éves megtakarítások</string>
+    <string name="insights_this_year">Idén</string>
+    <string name="insights_saved_suffix">%1$s Megtakarítva</string>
+    <string name="insights_top_purchase">Legnagyobb vásárlás</string>
+    <string name="insights_category_distribution">Kategória Megoszlás</string>
+    <string name="insights_category_sub">Érintsd meg a szegmenst a részletekhez</string>
+    <string name="insights_donut_a11y">Kategória diagram, fókuszban: %1$s (%2$d százalék)</string>
+    <string name="insights_common_tags">Leggyakoribb Címkék</string>
+    <string name="insights_biggest_drops">Legnagyobb Árcsökkenések</string>
+    <string name="insights_empty_title">Még nincs statisztikai adat</string>
+    <string name="insights_empty_desc">Ments el termékeket a WishDrop-ba a kategóriák, címkék és árcsökkenések elemzéséhez.</string>
+    <string name="insights_empty_action">Első Kívánság Hozzáadása</string>
+</resources>

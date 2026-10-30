@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cd_product_image">Termékkép: %1$s</string>
+    <string name="cd_person_avatar">Profilkép: %1$s</string>
+    <string name="cd_price_drop_badge">Az ár %1$d százalékkal csökkent</string>
+    <string name="label_save_amount">Megtakarítás: %1$s</string>
+    <string name="label_match_percent">%1$d%% Találat</string>
+    <string name="label_analyzing_product">Termék elemzése…</string>
+    <string name="state_loading_content">Tartalom betöltése</string>
+    <string name="state_error_default_title">Valami hiba történt</string>
+    <string name="state_action_retry">Újrapróbálás</string>
+    <string name="state_selected">Kiválasztva</string>
+    <string name="state_not_selected">Nincs kiválasztva</string>
+</resources>

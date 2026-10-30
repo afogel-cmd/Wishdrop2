@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="details_back">Vissza</string>
+    <string name="details_share">Termék megosztása</string>
+    <string name="details_price_alert">Árfigyelő bekapcsolása</string>
+    <string name="details_alert_on_state">Árfigyelő bekapcsolva</string>
+    <string name="details_alert_off_state">Árfigyelő kikapcsolva</string>
+    <string name="details_current_price">Jelenlegi Ár</string>
+    <string name="details_price_history">Árelőzmények</string>
+    <string name="details_price_low">Legalacsonyabb: %1$s</string>
+    <string name="details_price_high">Legmagasabb: %1$s</string>
+    <string name="details_chart_a11y">Árelőzmény %1$s számára, legalacsonyabb %2$s, legmagasabb %3$s</string>
+    <string name="details_ai_categories">AI Kategóriák</string>
+    <string name="details_ai_tags">AI Címkék</string>
+    <string name="details_recipient_detection">Címzett Felismerése</string>
+    <string name="details_confidence">%1$d%% Megbízhatóság</string>
+    <string name="details_change_recipient">Módosítás</string>
+    <string name="details_shared_list_label">Közös Lista</string>
+    <string name="details_shared_list_none">Személyes Kívánságlista (Nincs megosztva)</string>
+    <string name="details_assign_list_title">Hozzáadás közös listához</string>
+    <string name="details_store_comparison">Bolt Összehasonlítás</string>
+    <string name="details_best_price">Legjobb Ár</string>
+    <string name="details_alternative_products">Alternatív Termékek</string>
+    <string name="details_comments_title">Családi Megjegyzések</string>
+    <string name="details_comments_sub">Egyeztessétek az ajándékokat a meglepetés elárulása nélkül</string>
+    <string name="details_comment_placeholder">Írj egy jegyzetet a közreműködőknek…</string>
+    <string name="details_comment_send">Megjegyzés közzététele</string>
+    <string name="details_comments_empty">Még nincsenek megjegyzések — indítsd el a beszélgetést!</string>
+    <string name="details_activity_title">Aktivitási Idővonal</string>
+    <string name="details_activity_sub">Élőben szinkronizált események a család eszközei között</string>
+    <string name="details_mark_purchased">Megjelölés Megvásároltként</string>
+    <string name="details_purchased_done">Megvásárolva ✓</string>
+    <string name="details_assign_recipient_title">Ajándékozott Kijelölése</string>
+    <string name="details_close">Bezárás</string>
+    <string name="details_empty_title">A kívánság már nem érhető el</string>
+    <string name="details_empty_desc">Lehet, hogy a terméket törölték vagy átmozgatták egy másik gyűjteménybe.</string>
+    <string name="details_empty_action">Vissza a Kívánságlistához</string>
+</resources>

@@ -10,7 +10,8 @@
     <string name="profile_cloud_password">Password</string>
     <string name="profile_pending_invites_title">Pending List Invitations</string>
     <string name="profile_pending_invites_sub">Accept shared wishlist invitations from family members</string>
-    <string name="profile_accept_join">Accept &amp; Join List</string>
+    <string name="profile_accept_join">Accept</string>
+    <string name="profile_decline_invite">Decline</string>
     <string name="profile_family_members">Family Members</string>
     <string name="profile_family_sub">Tap a member to open their Gift Assistant</string>
     <string name="profile_family_empty_title">No family members yet</string>
@@ -37,4 +38,13 @@
     <string name="dialog_email">Email</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
+    <string name="profile_update_card_title">App Version</string>
+    <string name="profile_current_version">Installed version: %1$s</string>
+    <string name="profile_update_up_to_date">WishDrop is up to date</string>
+    <string name="profile_update_available">New version available: %1$s</string>
+    <string name="profile_update_check_button">Check for updates</string>
+    <string name="profile_update_checking">Checking for updates…</string>
+    <string name="profile_update_install_button">Download and install update</string>
+    <string name="profile_update_default_notes">Bug fixes and stability improvements</string>
+    <string name="profile_update_downloading">Downloading: %1$d%%</string>
 </resources>

@@ -6,14 +6,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -61,17 +64,18 @@ import com.google.android.gms.common.api.ApiException
 
 
 @Composable
-internal fun SupabaseCloudSyncCard(
+internal fun UnifiedProfileGoogleSyncCard(
   preferences: UserPreferences,
   realtimeStatus: RealtimeSyncStatus?,
-  onSignIn: (email: String, password: String) -> Unit,
-  onSignUp: (name: String, email: String, password: String) -> Unit,
+  onSignInGoogle: (displayName: String, email: String, avatarUrl: String?) -> Unit,
   onSignOut: () -> Unit,
-  onSignInGoogle: (displayName: String, email: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+  onSyncNow: () -> Unit,
+  onEditProfile: () -> Unit,
+  onConfigureCloud: (url: String, anonKey: String) -> Unit = { _, _ -> },
+  modifier: Modifier = Modifier,
 ) {
-  var email by rememberSaveable(preferences.email) { mutableStateOf(preferences.email) }
-  var password by rememberSaveable { mutableStateOf("") }
   var showGoogleDialog by rememberSaveable { mutableStateOf(false) }
+  var showCloudDialog by rememberSaveable { mutableStateOf(false) }
   val extended = WishDropDesign.colors
   val context = LocalContext.current
 
@@ -108,48 +112,104 @@ internal fun SupabaseCloudSyncCard(
   }
 
   PixelBentoCard(
-    modifier = Modifier.fillMaxWidth().testTag("profile_cloud_sync_card"),
+    modifier = modifier.fillMaxWidth().testTag("profile_user_card"),
   ) {
     Column(
-      modifier = Modifier.padding(20.dp),
-      verticalArrangement = Arrangement.spacedBy(14.dp),
+      modifier = Modifier.padding(18.dp),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
       Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
       ) {
-        Text(
-          text = "Google & Felhő Szinkronizáció",
-          style = MaterialTheme.typography.titleLarge,
-          modifier = Modifier.weight(1f, fill = false).semantics { heading() },
+        PersonAvatarBadge(
+          name = preferences.displayName,
+          accentKey = "indigo",
+          imageUrl = preferences.avatarUrl,
+          size = 56.dp,
         )
+        Column(
+          modifier = Modifier.weight(1f),
+          verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+          Text(
+            text = preferences.displayName,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+          Text(
+            text = preferences.email,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
         Surface(
           shape = CircleShape,
-          color = extended.savingsContainer,
-          contentColor = extended.onSavingsContainer,
+          color = MaterialTheme.colorScheme.primaryContainer,
+          modifier = Modifier.size(40.dp),
+        ) {
+          IconButton(
+            onClick = onEditProfile,
+            modifier = Modifier.testTag("profile_edit_button"),
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Edit,
+              contentDescription = stringResource(R.string.profile_edit),
+              tint = MaterialTheme.colorScheme.onPrimaryContainer,
+              modifier = Modifier.size(20.dp),
+            )
+          }
+        }
+      }
+
+      val isCloudConfigured = realtimeStatus?.isCloudConfigured == true
+      val currentStatusText = when {
+        isCloudConfigured -> "Supabase Felhő Szinkron Aktív"
+        preferences.isCloudAuthenticated -> "Google Profil Aktív • Helyi Cache"
+        else -> "Helyi Adattár • Felhő nincs csatlakoztatva"
+      }
+
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isCloudConfigured) extended.savingsContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        contentColor = if (isCloudConfigured) extended.onSavingsContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Row(
+          modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween,
         ) {
           Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f),
           ) {
             Icon(
               imageVector = WishDropIcons.CloudSynced,
               contentDescription = null,
-              modifier = Modifier.size(14.dp),
+              modifier = Modifier.size(16.dp),
+              tint = if (isCloudConfigured) extended.onSavingsContainer else MaterialTheme.colorScheme.outline,
             )
-            val currentStatusText = when {
-              preferences.isCloudAuthenticated -> "Google Sync Live"
-              realtimeStatus?.isCloudConfigured == true -> realtimeStatus.statusLabel
-              else -> "Online-First Active"
-            }
             Text(
               text = currentStatusText,
-              style = MaterialTheme.typography.labelSmall,
+              style = MaterialTheme.typography.labelMedium,
               fontWeight = FontWeight.SemiBold,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
+            )
+          }
+          TextButton(
+            onClick = { showCloudDialog = true },
+            modifier = Modifier.height(32.dp),
+          ) {
+            Text(
+              text = if (isCloudConfigured) "Beállítások" else "Felhő beállítása",
+              style = MaterialTheme.typography.labelSmall,
+              fontWeight = FontWeight.Bold,
             )
           }
         }
@@ -158,99 +218,58 @@ internal fun SupabaseCloudSyncCard(
       if (preferences.isCloudAuthenticated) {
         Row(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-          Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+          FilledTonalButton(
+            onClick = onSyncNow,
+            modifier = Modifier.weight(1f).minimumInteractiveComponentSize(),
           ) {
-            PersonAvatarBadge(
-              name = preferences.displayName,
-              accentKey = "indigo",
-              imageUrl = preferences.avatarUrl,
-              size = 44.dp,
+            Icon(
+              imageVector = WishDropIcons.CloudSynced,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp),
             )
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = preferences.displayName,
-                style = MaterialTheme.typography.titleSmall,
-              )
-              Text(
-                text = "${preferences.email} • Google Sync",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Szinkronizálás")
           }
           OutlinedButton(
             onClick = onSignOut,
-            modifier =
-              Modifier.minimumInteractiveComponentSize().testTag("profile_cloud_signout_button"),
+            modifier = Modifier.weight(1f).minimumInteractiveComponentSize().testTag("profile_cloud_signout_button"),
           ) {
             Text("Kijelentkezés")
           }
         }
       } else {
-        Button(
-          onClick = { handleGoogleSignIn() },
-          modifier =
-            Modifier.fillMaxWidth()
-              .minimumInteractiveComponentSize()
-              .testTag("profile_google_signin_button"),
-        ) {
-          Icon(
-            imageVector = WishDropIcons.Check,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Bejelentkezés Google Fiókkal")
-        }
-
-        OutlinedTextField(
-          value = email,
-          onValueChange = { email = it },
-          label = { Text(stringResource(R.string.dialog_email)) },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth().testTag("profile_cloud_email_input"),
-        )
-        OutlinedTextField(
-          value = password,
-          onValueChange = { password = it },
-          label = { Text(stringResource(R.string.profile_cloud_password)) },
-          visualTransformation = PasswordVisualTransformation(),
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth().testTag("profile_cloud_password_input"),
-        )
-        Row(
+        Column(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp),
+          horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-          OutlinedButton(
-            onClick = { onSignIn(email, password.ifBlank { "wishdrop-pass" }) },
-            modifier =
-              Modifier.weight(1f)
-                .minimumInteractiveComponentSize()
-                .testTag("profile_cloud_signin_button"),
+          Button(
+            onClick = { handleGoogleSignIn() },
+            modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize().testTag("profile_google_signin_button"),
           ) {
-            Text(stringResource(R.string.profile_cloud_sign_in))
+            Icon(
+              imageVector = WishDropIcons.CloudSynced,
+              contentDescription = null,
+              modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Bejelentkezés Google Fiókkal")
           }
-          FilledTonalButton(
-            onClick = {
-              onSignUp(
-                preferences.displayName,
-                email,
-                password.ifBlank { "wishdrop-pass" },
-              )
-            },
-            modifier =
-              Modifier.weight(1f)
-                .minimumInteractiveComponentSize()
-                .testTag("profile_cloud_signup_button"),
+          Text(
+            text = "Jelentkezz be Google fiókoddal a listák szinkronizációjához és a profilképed betöltéséhez!",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          TextButton(
+            onClick = { showGoogleDialog = true },
+            modifier = Modifier.minimumInteractiveComponentSize(),
           ) {
-            Text(stringResource(R.string.profile_cloud_sign_up))
+            Text(
+              text = "Google fiók adatok megadása",
+              style = MaterialTheme.typography.labelMedium,
+            )
           }
         }
       }
@@ -258,8 +277,29 @@ internal fun SupabaseCloudSyncCard(
   }
 
   if (showGoogleDialog) {
-    var gName by rememberSaveable { mutableStateOf(if (email.contains("@")) email.substringBefore("@").replaceFirstChar { it.uppercaseChar() } else "Attila Kovács") }
-    var gEmail by rememberSaveable { mutableStateOf(if (email.contains("@")) email else "attila.kovacs@gmail.com") }
+    var gName by rememberSaveable {
+      mutableStateOf(
+        if (preferences.email.contains("@") && preferences.displayName != "Saját profil") {
+          preferences.displayName
+        } else {
+          "Attila Kovács"
+        }
+      )
+    }
+    var gEmail by rememberSaveable {
+      mutableStateOf(
+        if (preferences.email.contains("@") && preferences.email != "felhasznalo@gmail.com") {
+          preferences.email
+        } else {
+          "attila.kovacs@gmail.com"
+        }
+      )
+    }
+    var gAvatarUrl by rememberSaveable {
+      mutableStateOf(
+        preferences.avatarUrl ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&h=200&q=80"
+      )
+    }
 
     AlertDialog(
       onDismissRequest = { showGoogleDialog = false },
@@ -267,14 +307,14 @@ internal fun SupabaseCloudSyncCard(
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
           Text(
-            text = "Adja meg Google fiók adatait a valós idejű felhő szinkronizáció aktiválásához!",
+            text = "Add meg Google fiók adataidat a felhő szinkronizációhoz és a profilkép megjelenítéséhez!",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           OutlinedTextField(
             value = gName,
             onValueChange = { gName = it },
-            label = { Text("Google Megjelenítendő Név") },
+            label = { Text("Google Név") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
           )
@@ -285,12 +325,19 @@ internal fun SupabaseCloudSyncCard(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
           )
+          OutlinedTextField(
+            value = gAvatarUrl,
+            onValueChange = { gAvatarUrl = it },
+            label = { Text("Google Profilkép URL") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+          )
         }
       },
       confirmButton = {
         Button(
           onClick = {
-            onSignInGoogle(gName.trim(), gEmail.trim(), "https://lh3.googleusercontent.com/a/default-user")
+            onSignInGoogle(gName.trim(), gEmail.trim(), gAvatarUrl.trim().ifBlank { null })
             showGoogleDialog = false
           },
           modifier = Modifier.minimumInteractiveComponentSize(),
@@ -308,12 +355,97 @@ internal fun SupabaseCloudSyncCard(
       },
     )
   }
+
+  if (showCloudDialog) {
+    SupabaseConfigDialog(
+      initialUrl = preferences.customSupabaseUrl ?: "",
+      initialKey = preferences.customSupabaseAnonKey ?: "",
+      onDismiss = { showCloudDialog = false },
+      onSave = { url, key ->
+        onConfigureCloud(url, key)
+      },
+    )
+  }
+}
+
+@Composable
+internal fun SupabaseConfigDialog(
+  initialUrl: String,
+  initialKey: String,
+  onDismiss: () -> Unit,
+  onSave: (url: String, key: String) -> Unit,
+) {
+  var url by rememberSaveable { mutableStateOf(initialUrl) }
+  var key by rememberSaveable { mutableStateOf(initialKey) }
+  var errorText by rememberSaveable { mutableStateOf<String?>(null) }
+  var isSaving by rememberSaveable { mutableStateOf(false) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Supabase Felhő Adatbázis") },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+          text = "Add meg a Supabase felhő elérési adataidat. Minden ajándék, családtag, esemény és kívánságlista azonnal mentődik a felhőbe, és újratelepítéskor vagy másik eszközön automatikusan helyreáll.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+          value = url,
+          onValueChange = { url = it; errorText = null },
+          label = { Text("Project URL (https://xyz.supabase.co)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+          value = key,
+          onValueChange = { key = it; errorText = null },
+          label = { Text("Anon Key") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+        )
+        errorText?.let {
+          Text(
+            text = it,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.labelSmall,
+          )
+        }
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          if (url.isBlank() || !url.startsWith("https://")) {
+            errorText = "Érvényes https:// URL szükséges"
+            return@Button
+          }
+          if (key.isBlank()) {
+            errorText = "Add meg az Anon API kulcsot"
+            return@Button
+          }
+          isSaving = true
+          onSave(url.trim(), key.trim())
+          onDismiss()
+        },
+        enabled = !isSaving,
+      ) {
+        Text("Mentés & Csatlakozás")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(R.string.action_cancel))
+      }
+    },
+  )
 }
 
 @Composable
 internal fun PendingInvitationsSection(
   invitations: List<ListInvitation>,
   onAcceptInvitation: (String) -> Unit,
+  onDeclineInvitation: (String) -> Unit = {},
 ) {
   if (invitations.isEmpty()) return
   PixelBentoCard(
@@ -371,19 +503,48 @@ internal fun PendingInvitationsSection(
                 )
               }
             }
-            FilledTonalButton(
-              onClick = { onAcceptInvitation(invite.id) },
-              modifier =
-                Modifier.fillMaxWidth()
-                  .testTag("profile_accept_invite_${invite.id}"),
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-              Icon(
-                imageVector = WishDropIcons.Check,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-              )
-              Spacer(Modifier.width(8.dp))
-              Text(stringResource(R.string.profile_accept_join))
+              OutlinedButton(
+                onClick = { onDeclineInvitation(invite.id) },
+                modifier =
+                  Modifier.weight(1f)
+                    .minimumInteractiveComponentSize()
+                    .testTag("profile_decline_invite_${invite.id}"),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.Clear,
+                  contentDescription = null,
+                  modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                  text = stringResource(R.string.profile_decline_invite),
+                  maxLines = 1,
+                )
+              }
+              FilledTonalButton(
+                onClick = { onAcceptInvitation(invite.id) },
+                modifier =
+                  Modifier.weight(1f)
+                    .minimumInteractiveComponentSize()
+                    .testTag("profile_accept_invite_${invite.id}"),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.Check,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                  text = stringResource(R.string.profile_accept_join),
+                  maxLines = 1,
+                )
+              }
             }
           }
         }

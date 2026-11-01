@@ -7,4 +7,10 @@
     <string name="nav_wishlist">Kívánságok</string>
     <string name="nav_insights">Statisztika</string>
     <string name="nav_profile">Profil</string>
+    <string name="update_dialog_title">Új frissítés elérhető! 🎉</string>
+    <string name="update_dialog_version">Verzió: %1$s (Jelenlegi: %2$s)</string>
+    <string name="update_default_notes">Hibajavítások és stabilitási frissítések</string>
+    <string name="update_action_install">Frissítés most</string>
+    <string name="update_action_later">Később</string>
+    <string name="update_downloading_progress">Frissítés letöltése… %1$d%%</string>
 </resources>

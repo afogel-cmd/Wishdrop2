@@ -166,6 +166,15 @@ constructor(
     }
   }
 
+  fun declineInvitation(invitationId: String) {
+    viewModelScope.launch {
+      manageSharedList
+        .declineInvitation(invitationId)
+        .onSuccess { statusMessageFlow.value = "Meghívás elutasítva" }
+        .onFailure { statusMessageFlow.value = "Nem sikerült elutasítani a meghívást" }
+    }
+  }
+
   fun addQuickProduct(title: String, store: String, priceHuf: Int) {
     val listId = listIdFlow.value ?: return
     viewModelScope.launch {

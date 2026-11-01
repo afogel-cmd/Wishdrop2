@@ -4,6 +4,7 @@ import com.example.domain.model.ActivityEvent
 import com.example.domain.model.AiRecommendation
 import com.example.domain.model.DashboardSummary
 import com.example.domain.model.ExtractedProductDraft
+import com.example.domain.model.FamilyMemberEvent
 import com.example.domain.model.FamilyPersona
 import com.example.domain.model.GiftRecipient
 import com.example.domain.model.GiftStage
@@ -113,6 +114,8 @@ interface CollaborationRepository {
   ): Result<ListInvitation>
 
   suspend fun acceptInvitation(invitationId: String): Result<String>
+
+  suspend fun declineInvitation(invitationId: String): Result<Unit>
 }
 
 interface AuthRepository {
@@ -131,6 +134,10 @@ interface AuthRepository {
   suspend fun switchActivePersona(memberId: String)
 
   suspend fun deleteFamilyMember(memberId: String)
+
+  suspend fun syncWithCloud(email: String): Result<String>
+
+  suspend fun saveCustomCloudConfig(url: String, anonKey: String): Result<Boolean>
 }
 
 interface GiftRepository {
@@ -156,6 +163,7 @@ interface GiftRepository {
     budgetHuf: Int,
     interests: List<String>,
     avatarUrl: String? = null,
+    events: List<FamilyMemberEvent> = emptyList(),
   ): String
 
   suspend fun updateRecipient(
@@ -166,6 +174,8 @@ interface GiftRepository {
     daysUntilEvent: Int,
     interests: List<String>,
     avatarUrl: String? = null,
+    events: List<FamilyMemberEvent>? = null,
+    budgetHuf: Int? = null,
   )
 
   suspend fun deleteRecipient(recipientId: String)

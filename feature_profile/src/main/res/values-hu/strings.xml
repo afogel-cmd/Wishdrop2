@@ -11,7 +11,8 @@
     <string name="profile_cloud_password">Jelszó</string>
     <string name="profile_pending_invites_title">Függő Listameghívások</string>
     <string name="profile_pending_invites_sub">Fogadd el a családtagok közös kívánságlista meghívásait</string>
-    <string name="profile_accept_join">Elfogadás és Csatlakozás</string>
+    <string name="profile_accept_join">Elfogadás</string>
+    <string name="profile_decline_invite">Elutasítás</string>
     <string name="profile_family_members">Családtagok</string>
     <string name="profile_family_sub">Koppints egy családtagra az Ajándék Segéd megnyitásához</string>
     <string name="profile_family_empty_title">Még nincsenek családtagok</string>
@@ -38,4 +39,13 @@
     <string name="dialog_email">E-mail cím</string>
     <string name="action_save">Mentés</string>
     <string name="action_cancel">Mégse</string>
+    <string name="profile_update_card_title">Alkalmazás verzió</string>
+    <string name="profile_current_version">Telepített verzió: %1$s</string>
+    <string name="profile_update_up_to_date">A WishDrop naprakész</string>
+    <string name="profile_update_available">Új verzió elérhető: %1$s</string>
+    <string name="profile_update_check_button">Frissítések keresése</string>
+    <string name="profile_update_checking">Ellenőrzés folyamatban…</string>
+    <string name="profile_update_install_button">Frissítés letöltése és telepítése</string>
+    <string name="profile_update_default_notes">Hibajavítások és stabilitási frissítések</string>
+    <string name="profile_update_downloading">Letöltés: %1$d%%</string>
 </resources>

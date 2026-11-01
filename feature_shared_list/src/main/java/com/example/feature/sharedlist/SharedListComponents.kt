@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -233,6 +234,7 @@ internal fun CollaboratorMemberCard(
 internal fun PendingInvitationRowCard(
   invitation: ListInvitation,
   onAccept: () -> Unit,
+  onDecline: () -> Unit = {},
 ) {
   Surface(
     shape = WishDropDesign.radii.medium,
@@ -277,19 +279,46 @@ internal fun PendingInvitationRowCard(
           )
         }
       }
-      FilledTonalButton(
-        onClick = onAccept,
-        modifier =
-          Modifier.fillMaxWidth()
-            .testTag("accept_invite_button_${invitation.id}"),
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
       ) {
-        Icon(
-          imageVector = WishDropIcons.Check,
-          contentDescription = null,
-          modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.shared_list_accept_join))
+        OutlinedButton(
+          onClick = onDecline,
+          modifier =
+            Modifier.weight(1f)
+              .testTag("decline_invite_button_${invitation.id}"),
+          contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        ) {
+          Icon(
+            imageVector = WishDropIcons.Clear,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+          )
+          Spacer(Modifier.width(6.dp))
+          Text(
+            text = stringResource(R.string.shared_list_decline_invite),
+            maxLines = 1,
+          )
+        }
+        FilledTonalButton(
+          onClick = onAccept,
+          modifier =
+            Modifier.weight(1f)
+              .testTag("accept_invite_button_${invitation.id}"),
+          contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        ) {
+          Icon(
+            imageVector = WishDropIcons.Check,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+          )
+          Spacer(Modifier.width(6.dp))
+          Text(
+            text = stringResource(R.string.shared_list_accept_join),
+            maxLines = 1,
+          )
+        }
       }
     }
   }

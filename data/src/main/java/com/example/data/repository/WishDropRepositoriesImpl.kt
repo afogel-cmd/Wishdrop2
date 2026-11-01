@@ -22,6 +22,8 @@ import com.example.data.local.entity.RecommendationEntity
 import com.example.data.local.entity.SharedListEntity
 import com.example.data.local.entity.TagEntity
 import com.example.data.local.entity.WishDropBackupPayload
+import com.example.data.remote.CloudFamilyMemberDto
+import com.example.data.remote.CloudProductDto
 import com.example.data.remote.SupabaseRemoteDataSource
 import com.example.data.seed.WishDropSeedCatalog
 import com.example.domain.model.AiRecommendation
@@ -146,8 +148,25 @@ internal fun ProductEntity.toDomain(): Product =
         .getOrDefault(emptyList()),
   )
 
-internal fun GiftRecipientEntity.toDomain(): GiftRecipient =
-  GiftRecipient(
+internal fun GiftRecipientEntity.toDomain(): GiftRecipient {
+  val parsedEvents: List<com.example.domain.model.FamilyMemberEvent> =
+    runCatching { repositoryJson.decodeFromString<List<com.example.domain.model.FamilyMemberEvent>>(eventsJson) }
+      .getOrDefault(emptyList())
+  val effectiveEvents = if (parsedEvents.isEmpty() && upcomingEventName.isNotBlank()) {
+    listOf(
+      com.example.domain.model.FamilyMemberEvent(
+        id = "evt_primary_${id}",
+        title = upcomingEventName,
+        dateMillis = System.currentTimeMillis() + daysUntilEvent.toLong() * 86_400_000L,
+        eventType = com.example.core.format.EventDateUtils.determineEventType(upcomingEventName),
+        isRecurringYearly = true,
+      )
+    )
+  } else {
+    parsedEvents
+  }
+
+  return GiftRecipient(
     id = id,
     name = name,
     relationship = relationship,
@@ -161,7 +180,9 @@ internal fun GiftRecipientEntity.toDomain(): GiftRecipient =
     giftStage = runCatching { GiftStage.valueOf(giftStageName) }.getOrDefault(GiftStage.IDEA),
     accentKey = accentKey,
     avatarUrl = avatarUrl,
+    events = effectiveEvents,
   )
+}
 
 internal fun RecommendationEntity.toDomain(): AiRecommendation =
   AiRecommendation(
@@ -529,6 +550,23 @@ constructor(
           put("current_price_huf", draft.priceHuf)
         },
     )
+    remoteDataSource.upsertProduct(
+      CloudProductDto(
+        id = id,
+        title = draft.title,
+        store = draft.store,
+        currentPriceHuf = draft.priceHuf,
+        originalPriceHuf = draft.originalPriceHuf.coerceAtLeast(draft.priceHuf),
+        imageUrl = draft.imageKey,
+        affiliateUrl = draft.sourceUrl,
+        isPurchased = false,
+        isArchived = false,
+        recipientId = draft.recipientPrediction?.recipientId,
+        sharedListId = targetList?.id,
+        notes = "",
+        tagsJson = repositoryJson.encodeToString(draft.tags),
+      )
+    )
     return id
   }
 
@@ -543,16 +581,56 @@ constructor(
       eventType = "PURCHASE_STATUS",
     )
     remoteDataSource.notifyLocalMutation("products", "UPDATE")
+    product?.let {
+      remoteDataSource.upsertProduct(
+        CloudProductDto(
+          id = it.id,
+          title = it.title,
+          store = it.store,
+          currentPriceHuf = it.currentPriceHuf,
+          originalPriceHuf = it.originalPriceHuf,
+          imageUrl = it.imageKey,
+          affiliateUrl = it.sourceUrl,
+          isPurchased = purchased,
+          isArchived = it.isArchived,
+          recipientId = it.recipientId,
+          sharedListId = it.sharedListId,
+          notes = it.notes,
+          tagsJson = it.tagsJson,
+        )
+      )
+    }
   }
 
   override suspend fun setArchived(productId: String, archived: Boolean) {
     productDao.updateArchived(productId, archived)
     remoteDataSource.notifyLocalMutation("products", "ARCHIVE")
+    val product = productDao.getProductById(productId)
+    product?.let {
+      remoteDataSource.upsertProduct(
+        CloudProductDto(
+          id = it.id,
+          title = it.title,
+          store = it.store,
+          currentPriceHuf = it.currentPriceHuf,
+          originalPriceHuf = it.originalPriceHuf,
+          imageUrl = it.imageKey,
+          affiliateUrl = it.sourceUrl,
+          isPurchased = it.isPurchased,
+          isArchived = archived,
+          recipientId = it.recipientId,
+          sharedListId = it.sharedListId,
+          notes = it.notes,
+          tagsJson = it.tagsJson,
+        )
+      )
+    }
   }
 
   override suspend fun deleteProduct(productId: String) {
     productDao.deleteProduct(productId)
     remoteDataSource.notifyLocalMutation("products", "DELETE")
+    remoteDataSource.deleteProduct(productId)
   }
 
   override suspend fun togglePriceAlert(productId: String) {
@@ -644,6 +722,7 @@ constructor(
   private val priceHistoryDao: PriceHistoryDao,
   private val recommendationDao: RecommendationDao,
   private val preferencesRepository: UserPreferencesRepository,
+  private val remoteDataSource: SupabaseRemoteDataSource,
 ) : GiftRepository {
 
   override fun observeRecipients(): Flow<List<GiftRecipient>> =
@@ -702,28 +781,69 @@ constructor(
     budgetHuf: Int,
     interests: List<String>,
     avatarUrl: String?,
+    events: List<com.example.domain.model.FamilyMemberEvent>,
   ): String {
     initializer.ensureSeeded()
     val id = "rec_${UUID.randomUUID().toString().take(6)}"
     val accents = listOf("coral", "mint", "lavender", "indigo")
     val avatars = listOf("avatar_dalma", "avatar_olivia", "avatar_armin", "avatar_attila")
     val index = name.hashCode().let { if (it < 0) -it else it } % 4
+
+    val effectiveEvents = if (events.isEmpty() && eventName.isNotBlank()) {
+      listOf(
+        com.example.domain.model.FamilyMemberEvent(
+          id = "evt_${UUID.randomUUID().toString().take(6)}",
+          title = eventName.trim(),
+          dateMillis = System.currentTimeMillis() + daysUntilEvent.toLong() * 86_400_000L,
+          eventType = com.example.core.format.EventDateUtils.determineEventType(eventName),
+          isRecurringYearly = true,
+        )
+      )
+    } else {
+      events
+    }
+
+    val primaryEvent = effectiveEvents.minByOrNull {
+      com.example.core.format.EventDateUtils.calculateDaysUntilRecurringEvent(it.dateMillis)
+    }
+    val finalEventName = primaryEvent?.title ?: eventName.trim().ifBlank { "${name.trim()} Celebration" }
+    val finalDays = primaryEvent?.let {
+      com.example.core.format.EventDateUtils.calculateDaysUntilRecurringEvent(it.dateMillis)
+    } ?: daysUntilEvent.coerceAtLeast(1)
+
     val entity =
       GiftRecipientEntity(
         id = id,
         name = name.trim(),
         relationship = relationship.trim().ifBlank { "Family" },
         avatarKey = avatars[index],
-        upcomingEventName = eventName.trim().ifBlank { "${name.trim()} Celebration" },
-        daysUntilEvent = daysUntilEvent.coerceAtLeast(1),
+        upcomingEventName = finalEventName,
+        daysUntilEvent = finalDays,
         budgetHuf = budgetHuf.coerceAtLeast(5_000),
         interestsJson =
           repositoryJson.encodeToString(interests.ifEmpty { listOf("Gift", "Home Decor") }),
         giftStageName = GiftStage.IDEA.name,
         accentKey = accents[index],
         avatarUrl = avatarUrl,
+        eventsJson = repositoryJson.encodeToString(effectiveEvents),
       )
     recipientDao.upsertRecipient(entity)
+    remoteDataSource.notifyLocalMutation("gift_recipients", "INSERT")
+    remoteDataSource.upsertFamilyMember(
+      CloudFamilyMemberDto(
+        id = id,
+        name = entity.name,
+        relationship = entity.relationship,
+        avatarKey = entity.avatarKey,
+        accentKey = entity.accentKey,
+        upcomingEventName = entity.upcomingEventName,
+        daysUntilEvent = entity.daysUntilEvent,
+        budgetHuf = entity.budgetHuf,
+        interestsJson = entity.interestsJson,
+        eventsJson = entity.eventsJson,
+        avatarUrl = entity.avatarUrl,
+      )
+    )
     recommendationDao.upsertRecommendation(
       RecommendationEntity(
         id = "ai_rec_${UUID.randomUUID().toString().take(6)}",
@@ -750,35 +870,82 @@ constructor(
     daysUntilEvent: Int,
     interests: List<String>,
     avatarUrl: String?,
+    events: List<com.example.domain.model.FamilyMemberEvent>?,
+    budgetHuf: Int?,
   ) {
     val current = recipientDao.getRecipientById(recipientId)
+    val existingEvents: List<com.example.domain.model.FamilyMemberEvent> =
+      if (current != null) {
+        runCatching { repositoryJson.decodeFromString<List<com.example.domain.model.FamilyMemberEvent>>(current.eventsJson) }.getOrDefault(emptyList())
+      } else emptyList()
+
+    val targetEvents = events ?: existingEvents
+    val primaryEvent = targetEvents.minByOrNull {
+      com.example.core.format.EventDateUtils.calculateDaysUntilRecurringEvent(it.dateMillis)
+    }
+    val finalEventName = primaryEvent?.title ?: eventName.trim().ifBlank { "Celebration" }
+    val finalDays = primaryEvent?.let {
+      com.example.core.format.EventDateUtils.calculateDaysUntilRecurringEvent(it.dateMillis)
+    } ?: daysUntilEvent.coerceAtLeast(0)
+
     if (current != null) {
       val updated =
         current.copy(
           name = name.trim(),
           relationship = relationship.trim().ifBlank { "Family" },
-          upcomingEventName = eventName.trim().ifBlank { "Celebration" },
-          daysUntilEvent = daysUntilEvent.coerceAtLeast(0),
+          upcomingEventName = finalEventName,
+          daysUntilEvent = finalDays,
+          budgetHuf = budgetHuf ?: current.budgetHuf,
           interestsJson = repositoryJson.encodeToString(interests),
           avatarUrl = avatarUrl ?: current.avatarUrl,
+          eventsJson = repositoryJson.encodeToString(targetEvents),
         )
       recipientDao.upsertRecipient(updated)
+      remoteDataSource.upsertFamilyMember(
+        CloudFamilyMemberDto(
+          id = recipientId,
+          name = updated.name,
+          relationship = updated.relationship,
+          avatarKey = updated.avatarKey,
+          accentKey = updated.accentKey,
+          upcomingEventName = updated.upcomingEventName,
+          daysUntilEvent = updated.daysUntilEvent,
+          budgetHuf = updated.budgetHuf,
+          interestsJson = updated.interestsJson,
+          eventsJson = updated.eventsJson,
+          avatarUrl = updated.avatarUrl,
+        )
+      )
     } else {
       recipientDao.updateRecipientDetails(
         recipientId = recipientId,
         name = name.trim(),
         relationship = relationship.trim().ifBlank { "Family" },
-        eventName = eventName.trim().ifBlank { "Celebration" },
-        daysUntilEvent = daysUntilEvent.coerceAtLeast(0),
+        eventName = finalEventName,
+        daysUntilEvent = finalDays,
         interestsJson = repositoryJson.encodeToString(interests),
       )
+      remoteDataSource.upsertFamilyMember(
+        CloudFamilyMemberDto(
+          id = recipientId,
+          name = name.trim(),
+          relationship = relationship.trim().ifBlank { "Family" },
+          upcomingEventName = finalEventName,
+          daysUntilEvent = finalDays,
+          interestsJson = repositoryJson.encodeToString(interests),
+          avatarUrl = avatarUrl,
+        )
+      )
     }
+    remoteDataSource.notifyLocalMutation("gift_recipients", "UPDATE")
   }
 
   override suspend fun deleteRecipient(recipientId: String) {
     recipientDao.deleteRecipient(recipientId)
     productDao.clearRecipientFromProducts(recipientId)
     recommendationDao.deleteRecommendationsForRecipient(recipientId)
+    remoteDataSource.notifyLocalMutation("gift_recipients", "DELETE")
+    remoteDataSource.deleteFamilyMember(recipientId)
   }
 
   override suspend fun dismissRecommendation(recommendationId: String) {

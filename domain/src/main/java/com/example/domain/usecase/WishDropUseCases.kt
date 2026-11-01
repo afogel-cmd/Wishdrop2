@@ -202,6 +202,9 @@ constructor(
 
   suspend fun acceptInvitation(invitationId: String): Result<String> =
     collaborationRepository.acceptInvitation(invitationId)
+
+  suspend fun declineInvitation(invitationId: String): Result<Unit> =
+    collaborationRepository.declineInvitation(invitationId)
 }
 
 class ManageFamilyAuthUseCase
@@ -231,6 +234,12 @@ constructor(
 
   suspend fun deleteFamilyMember(memberId: String) =
     authRepository.deleteFamilyMember(memberId)
+
+  suspend fun syncWithCloud(email: String): Result<String> =
+    authRepository.syncWithCloud(email)
+
+  suspend fun saveCustomCloudConfig(url: String, anonKey: String): Result<Boolean> =
+    authRepository.saveCustomCloudConfig(url, anonKey)
 }
 
 class ManageGiftPlanUseCase
@@ -273,6 +282,8 @@ constructor(private val giftRepository: GiftRepository) {
     daysUntilEvent: Int,
     interests: List<String>,
     avatarUrl: String? = null,
+    events: List<com.example.domain.model.FamilyMemberEvent>? = null,
+    budgetHuf: Int? = null,
   ) = giftRepository.updateRecipient(
     recipientId = recipientId,
     name = name,
@@ -281,6 +292,8 @@ constructor(private val giftRepository: GiftRepository) {
     daysUntilEvent = daysUntilEvent,
     interests = interests,
     avatarUrl = avatarUrl,
+    events = events,
+    budgetHuf = budgetHuf,
   )
 
   suspend fun addPerson(
@@ -291,8 +304,9 @@ constructor(private val giftRepository: GiftRepository) {
     budgetHuf: Int,
     interests: List<String>,
     avatarUrl: String? = null,
+    events: List<com.example.domain.model.FamilyMemberEvent> = emptyList(),
   ): String =
-    giftRepository.addRecipient(name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl)
+    giftRepository.addRecipient(name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl, events)
 }
 
 class AnalyzeProductInputUseCase

@@ -10,7 +10,8 @@
     <string name="shared_list_members_title">Collaborators</string>
     <string name="shared_list_members_sub">Tap a member to adjust permissions</string>
     <string name="shared_list_pending_invites">Pending Invitations</string>
-    <string name="shared_list_accept_join">Accept &amp; Join List</string>
+    <string name="shared_list_accept_join">Accept</string>
+    <string name="shared_list_decline_invite">Decline</string>
     <string name="shared_list_products_title">Shared Products</string>
     <string name="shared_list_products_empty_title">No products in this list yet</string>
     <string name="shared_list_products_empty_desc">Add a gift idea to coordinate in real time with your family.</string>

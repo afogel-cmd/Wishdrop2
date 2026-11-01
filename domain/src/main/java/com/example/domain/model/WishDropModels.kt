@@ -110,6 +110,17 @@ data class PricePoint(
 )
 
 @Serializable
+data class FamilyMemberEvent(
+  val id: String,
+  val title: String,
+  val dateMillis: Long,
+  val eventType: String = "Születésnap", // Születésnap, Évforduló, Karácsony, Névnap, Egyéb
+  val isRecurringYearly: Boolean = true,
+  val reminderDaysBefore: Int = 14,
+  val note: String = "",
+)
+
+@Serializable
 data class GiftRecipient(
   val id: String,
   val name: String,
@@ -122,6 +133,7 @@ data class GiftRecipient(
   val giftStage: GiftStage,
   val accentKey: String,
   val avatarUrl: String? = null,
+  val events: List<FamilyMemberEvent> = emptyList(),
 )
 
 @Serializable

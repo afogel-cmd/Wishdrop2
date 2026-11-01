@@ -38,6 +38,8 @@ data class UserPreferences(
   val isCloudAuthenticated: Boolean = false,
   val supabaseUserId: String? = null,
   val supabaseAccessToken: String? = null,
+  val customSupabaseUrl: String? = null,
+  val customSupabaseAnonKey: String? = null,
   val themeMode: ThemeMode = ThemeMode.SYSTEM,
   val appLanguage: AppLanguage = AppLanguage.HUNGARIAN,
   val useDynamicColor: Boolean = true,
@@ -83,6 +85,8 @@ interface UserPreferencesRepository {
     displayName: String?,
     avatarUrl: String? = null,
   )
+
+  suspend fun setCustomSupabaseConfig(url: String?, anonKey: String?)
 }
 
 private val Context.wishDropDataStore: DataStore<Preferences> by
@@ -101,6 +105,8 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     val IS_CLOUD_AUTH = booleanPreferencesKey("is_cloud_authenticated")
     val SUPABASE_USER_ID = stringPreferencesKey("supabase_user_id")
     val SUPABASE_ACCESS_TOKEN = stringPreferencesKey("supabase_access_token")
+    val CUSTOM_SUPABASE_URL = stringPreferencesKey("custom_supabase_url")
+    val CUSTOM_SUPABASE_ANON_KEY = stringPreferencesKey("custom_supabase_anon_key")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val APP_LANGUAGE = stringPreferencesKey("app_language")
     val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
@@ -128,6 +134,8 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
         isCloudAuthenticated = prefs[Keys.IS_CLOUD_AUTH] ?: false,
         supabaseUserId = prefs[Keys.SUPABASE_USER_ID],
         supabaseAccessToken = prefs[Keys.SUPABASE_ACCESS_TOKEN],
+        customSupabaseUrl = prefs[Keys.CUSTOM_SUPABASE_URL],
+        customSupabaseAnonKey = prefs[Keys.CUSTOM_SUPABASE_ANON_KEY],
         themeMode = mode,
         appLanguage = lang,
         useDynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
@@ -236,6 +244,21 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       }
       if (!avatarUrl.isNullOrBlank()) {
         it[Keys.AVATAR_URL] = avatarUrl
+      }
+    }
+  }
+
+  override suspend fun setCustomSupabaseConfig(url: String?, anonKey: String?) {
+    dataStore.edit {
+      if (!url.isNullOrBlank()) {
+        it[Keys.CUSTOM_SUPABASE_URL] = url.trim()
+      } else {
+        it.remove(Keys.CUSTOM_SUPABASE_URL)
+      }
+      if (!anonKey.isNullOrBlank()) {
+        it[Keys.CUSTOM_SUPABASE_ANON_KEY] = anonKey.trim()
+      } else {
+        it.remove(Keys.CUSTOM_SUPABASE_ANON_KEY)
       }
     }
   }

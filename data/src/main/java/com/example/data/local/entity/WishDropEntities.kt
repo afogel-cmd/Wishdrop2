@@ -209,6 +209,7 @@ data class GiftRecipientEntity(
   val giftStageName: String,
   val accentKey: String,
   val avatarUrl: String? = null,
+  val eventsJson: String = "[]",
 )
 
 @Serializable

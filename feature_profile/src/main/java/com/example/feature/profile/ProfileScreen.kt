@@ -12,18 +12,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -133,24 +135,36 @@ fun ProfileRouteScreen(
     }
   }
 
+  val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+  val currentVersionName = remember(context) {
+    runCatching {
+      context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
+    }.getOrDefault("1.0")
+  }
+
   Scaffold(
     snackbarHost = { SnackbarHost(snackbarHostState) },
     containerColor = MaterialTheme.colorScheme.background,
   ) { innerPadding ->
     ProfileScreenContent(
       state = uiState,
+      updateState = updateState,
+      currentVersionName = currentVersionName,
+      onCheckForUpdate = { viewModel.checkForUpdate(currentVersionName) },
+      onDownloadAndInstallUpdate = { info -> viewModel.downloadAndInstallUpdate(context, info) },
       onRetry = viewModel::retry,
       onOpenFamilyMember = onOpenFamilyMember,
       onAddFamilyMember = viewModel::addFamilyMember,
       onUpdateFamilyMember = viewModel::updateFamilyMember,
       onDeleteFamilyMember = viewModel::deleteFamilyMember,
-      onSignInCloud = viewModel::signInCloud,
       onSignInGoogle = viewModel::signInWithGoogle,
-      onSignUpCloud = viewModel::signUpCloud,
-      onSignOutCloud = viewModel::signOutCloud,
+      onSignOutGoogle = viewModel::signOutCloud,
+      onSyncNow = viewModel::syncNow,
+      onConfigureCloud = { url, key -> viewModel.saveCustomCloudConfig(url, key) { _, _ -> } },
       onAcceptInvitation = { inviteId ->
         viewModel.acceptInvitation(inviteId, onOpenSharedList)
       },
+      onDeclineInvitation = viewModel::declineInvitation,
       onThemeModeSelected = viewModel::setThemeMode,
       onLanguageSelected = viewModel::setAppLanguage,
       onDynamicColorChanged = viewModel::setDynamicColor,
@@ -176,28 +190,33 @@ fun ProfileRouteScreen(
 @Composable
 fun ProfileScreenContent(
   state: ProfileUiState,
-  onRetry: () -> Unit,
-  onOpenFamilyMember: (String) -> Unit,
-  onThemeModeSelected: (ThemeMode) -> Unit,
+  updateState: ProfileUpdateState = ProfileUpdateState.Idle,
+  currentVersionName: String = "1.0",
+  onCheckForUpdate: () -> Unit = {},
+  onDownloadAndInstallUpdate: (com.example.domain.model.AppUpdateInfo) -> Unit = {},
+  onRetry: () -> Unit = {},
+  onOpenFamilyMember: (String) -> Unit = {},
+  onThemeModeSelected: (ThemeMode) -> Unit = {},
   onLanguageSelected: (AppLanguage) -> Unit = {},
-  onDynamicColorChanged: (Boolean) -> Unit,
-  onPriceAlertsChanged: (Boolean) -> Unit,
-  onEventRemindersChanged: (Boolean) -> Unit,
-  onAiAutoCatChanged: (Boolean) -> Unit,
-  onAiRecipientChanged: (Boolean) -> Unit,
-  onAiConfidenceChanged: (Float) -> Unit,
-  onUpdateProfile: (String, String, String?) -> Unit,
-  onExportClick: () -> Unit,
-  onImportClick: () -> Unit,
-  onResetCatalog: () -> Unit,
-  onAddFamilyMember: (name: String, relationship: String, eventName: String, days: Int, budget: Int, interests: List<String>, avatarUrl: String?) -> Unit = { _, _, _, _, _, _, _ -> },
-  onUpdateFamilyMember: (id: String, name: String, relationship: String, eventName: String, days: Int, interests: List<String>, avatarUrl: String?) -> Unit = { _, _, _, _, _, _, _ -> },
+  onDynamicColorChanged: (Boolean) -> Unit = {},
+  onPriceAlertsChanged: (Boolean) -> Unit = {},
+  onEventRemindersChanged: (Boolean) -> Unit = {},
+  onAiAutoCatChanged: (Boolean) -> Unit = {},
+  onAiRecipientChanged: (Boolean) -> Unit = {},
+  onAiConfidenceChanged: (Float) -> Unit = {},
+  onUpdateProfile: (String, String, String?) -> Unit = { _, _, _ -> },
+  onExportClick: () -> Unit = {},
+  onImportClick: () -> Unit = {},
+  onResetCatalog: () -> Unit = {},
+  onAddFamilyMember: (name: String, relationship: String, eventName: String, days: Int, budget: Int, interests: List<String>, avatarUrl: String?, events: List<com.example.domain.model.FamilyMemberEvent>) -> Unit = { _, _, _, _, _, _, _, _ -> },
+  onUpdateFamilyMember: (id: String, name: String, relationship: String, eventName: String, days: Int, budget: Int, interests: List<String>, avatarUrl: String?, events: List<com.example.domain.model.FamilyMemberEvent>?) -> Unit = { _, _, _, _, _, _, _, _, _ -> },
   onDeleteFamilyMember: (String) -> Unit = {},
-  onSignInCloud: (String, String) -> Unit = { _, _ -> },
   onSignInGoogle: (displayName: String, email: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
-  onSignUpCloud: (String, String, String) -> Unit = { _, _, _ -> },
-  onSignOutCloud: () -> Unit = {},
+  onSignOutGoogle: () -> Unit = {},
+  onSyncNow: () -> Unit = {},
+  onConfigureCloud: (String, String) -> Unit = { _, _ -> },
   onAcceptInvitation: (String) -> Unit = {},
+  onDeclineInvitation: (String) -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
   val spacing = WishDropDesign.spacing
@@ -249,58 +268,16 @@ fun ProfileScreenContent(
             )
           }
 
-          item(key = "user_card", contentType = "user_card") {
-            PixelBentoCard(
-              modifier = Modifier.fillMaxWidth().testTag("profile_user_card"),
-            ) {
-              Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-              ) {
-                PersonAvatarBadge(
-                  name = prefs.displayName,
-                  accentKey = "indigo",
-                  imageUrl = prefs.avatarUrl,
-                  size = 52.dp,
-                )
-                Column(
-                  modifier = Modifier.weight(1f),
-                  verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                  Text(
-                    text = prefs.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                  )
-                  Text(
-                    text = prefs.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                  )
-                }
-                Surface(
-                  shape = CircleShape,
-                  color = MaterialTheme.colorScheme.primaryContainer,
-                  modifier = Modifier.size(40.dp),
-                ) {
-                  IconButton(
-                    onClick = { showEditDialog = true },
-                    modifier = Modifier.testTag("profile_edit_button"),
-                  ) {
-                    Icon(
-                      imageVector = WishDropIcons.Edit,
-                      contentDescription = stringResource(R.string.profile_edit),
-                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                      modifier = Modifier.size(20.dp),
-                    )
-                  }
-                }
-              }
-            }
+          item(key = "unified_user_card", contentType = "user_card") {
+            UnifiedProfileGoogleSyncCard(
+              preferences = prefs,
+              realtimeStatus = state.realtimeStatus,
+              onSignInGoogle = onSignInGoogle,
+              onSignOut = onSignOutGoogle,
+              onSyncNow = onSyncNow,
+              onEditProfile = { showEditDialog = true },
+              onConfigureCloud = onConfigureCloud,
+            )
           }
 
           if (state.pendingInvitations.isNotEmpty()) {
@@ -308,19 +285,9 @@ fun ProfileScreenContent(
               PendingInvitationsSection(
                 invitations = state.pendingInvitations,
                 onAcceptInvitation = onAcceptInvitation,
+                onDeclineInvitation = onDeclineInvitation,
               )
             }
-          }
-
-          item(key = "cloud_sync_card", contentType = "cloud_sync") {
-            SupabaseCloudSyncCard(
-              preferences = prefs,
-              realtimeStatus = state.realtimeStatus,
-              onSignIn = onSignInCloud,
-              onSignInGoogle = onSignInGoogle,
-              onSignUp = onSignUpCloud,
-              onSignOut = onSignOutCloud,
-            )
           }
 
           item(key = "family_members", contentType = "family_members") {
@@ -576,17 +543,12 @@ fun ProfileScreenContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                   )
                 }
-                OutlinedButton(
-                  onClick = onResetCatalog,
-                  modifier =
-                    Modifier.fillMaxWidth()
-                      .minimumInteractiveComponentSize()
-                      .testTag("profile_reset_catalog_button"),
-                ) {
-                  Icon(imageVector = WishDropIcons.Restore, contentDescription = null)
-                  Spacer(modifier = Modifier.width(8.dp))
-                  Text(stringResource(R.string.profile_reset_catalog))
-                }
+                AppUpdateComponent(
+                  currentVersion = currentVersionName,
+                  updateState = updateState,
+                  onCheckForUpdate = onCheckForUpdate,
+                  onDownloadAndInstall = onDownloadAndInstallUpdate,
+                )
               }
             }
           }
@@ -670,19 +632,11 @@ fun ProfileScreenContent(
       }
 
       if (showAddMemberDialog) {
-        FamilyMemberDialog(
-          dialogTitle = "Új családtag hozzáadása",
-          confirmButtonText = "Hozzáadás",
-          initialName = "",
-          initialRelationship = "Partner",
-          initialEventName = "Születésnap",
-          initialDaysUntilEvent = 30,
-          initialBudgetHuf = 25000,
-          initialInterests = listOf("Könyvek", "Kávé"),
-          initialAvatarUrl = null,
-          accentKey = "coral",
+        FamilyMemberProfileDialog(
+          member = null,
+          isNewMember = true,
           onDismiss = { showAddMemberDialog = false },
-          onConfirm = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl ->
+          onSave = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl, events ->
             onAddFamilyMember(
               name,
               relationship,
@@ -691,6 +645,7 @@ fun ProfileScreenContent(
               budgetHuf,
               interests,
               avatarUrl,
+              events,
             )
             showAddMemberDialog = false
           },
@@ -699,28 +654,26 @@ fun ProfileScreenContent(
 
       val currentEditingMember = editingMember
       if (currentEditingMember != null) {
-        FamilyMemberDialog(
-          dialogTitle = "Családtag szerkesztése",
-          confirmButtonText = "Mentés",
-          initialName = currentEditingMember.name,
-          initialRelationship = currentEditingMember.relationship,
-          initialEventName = currentEditingMember.upcomingEventName,
-          initialDaysUntilEvent = currentEditingMember.daysUntilEvent,
-          initialBudgetHuf = currentEditingMember.budgetHuf,
-          initialInterests = currentEditingMember.interests,
-          initialAvatarUrl = currentEditingMember.avatarUrl,
-          accentKey = currentEditingMember.accentKey,
+        FamilyMemberProfileDialog(
+          member = currentEditingMember,
+          isNewMember = false,
           onDismiss = { editingMember = null },
-          onConfirm = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl ->
+          onSave = { name, relationship, eventName, daysUntilEvent, budgetHuf, interests, avatarUrl, events ->
             onUpdateFamilyMember(
               currentEditingMember.id,
               name,
               relationship,
               eventName,
               daysUntilEvent,
+              budgetHuf,
               interests,
               avatarUrl,
+              events,
             )
+            editingMember = null
+          },
+          onDelete = {
+            onDeleteFamilyMember(currentEditingMember.id)
             editingMember = null
           },
         )
@@ -729,389 +682,162 @@ fun ProfileScreenContent(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun FamilyMemberDialog(
-  dialogTitle: String,
-  confirmButtonText: String,
-  initialName: String = "",
-  initialRelationship: String = "Partner",
-  initialEventName: String = "Születésnap",
-  initialDaysUntilEvent: Int = 30,
-  initialBudgetHuf: Int = 25_000,
-  initialInterests: List<String> = emptyList(),
-  initialAvatarUrl: String? = null,
-  accentKey: String = "coral",
-  onDismiss: () -> Unit,
-  onConfirm: (
-    name: String,
-    relationship: String,
-    eventName: String,
-    daysUntilEvent: Int,
-    budgetHuf: Int,
-    interests: List<String>,
-    avatarUrl: String?,
-  ) -> Unit,
+private fun AppUpdateComponent(
+  currentVersion: String,
+  updateState: ProfileUpdateState,
+  onCheckForUpdate: () -> Unit,
+  onDownloadAndInstall: (com.example.domain.model.AppUpdateInfo) -> Unit,
 ) {
-  var name by rememberSaveable { mutableStateOf(initialName) }
-  var relationship by rememberSaveable { mutableStateOf(initialRelationship) }
-  var avatarUrl by rememberSaveable { mutableStateOf(initialAvatarUrl) }
-  var budgetText by rememberSaveable { mutableStateOf(initialBudgetHuf.toString()) }
-
-  val eventTypes = listOf("Születésnap", "Évforduló", "Karácsony", "Névnap", "Egyéb")
-  var selectedEventType by rememberSaveable {
-    mutableStateOf(
-      when {
-        initialEventName.contains("szüli", ignoreCase = true) || initialEventName.contains("születés", ignoreCase = true) || initialEventName.contains("birthday", ignoreCase = true) -> "Születésnap"
-        initialEventName.contains("évforduló", ignoreCase = true) || initialEventName.contains("anniversary", ignoreCase = true) -> "Évforduló"
-        initialEventName.contains("karácsony", ignoreCase = true) || initialEventName.contains("christmas", ignoreCase = true) -> "Karácsony"
-        initialEventName.contains("névnap", ignoreCase = true) || initialEventName.contains("nameday", ignoreCase = true) -> "Névnap"
-        else -> if (initialEventName.isNotBlank() && initialEventName != "Születésnap") "Egyéb" else "Születésnap"
-      }
-    )
-  }
-  var customEventName by rememberSaveable {
-    mutableStateOf(if (selectedEventType == "Egyéb") initialEventName else "")
-  }
-
-  var showDatePicker by rememberSaveable { mutableStateOf(false) }
-  var selectedDateMillis by rememberSaveable {
-    mutableStateOf(System.currentTimeMillis() + initialDaysUntilEvent.toLong() * 86_400_000L)
-  }
-  val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
-
-  val calculatedDays = EventDateUtils.calculateDaysUntilRecurringEvent(selectedDateMillis)
-  val formattedDateStr = EventDateUtils.formatEventDate(selectedDateMillis)
-  val daysRemainingStr = EventDateUtils.formatDaysRemaining(calculatedDays)
-
-  var selectedInterests by rememberSaveable {
-    mutableStateOf(initialInterests.ifEmpty { listOf("Könyvek", "Kávé") })
-  }
-  var customInterestInput by rememberSaveable { mutableStateOf("") }
-
-  val photoPicker = rememberLauncherForActivityResult(
-    ActivityResultContracts.PickVisualMedia()
-  ) { uri ->
-    if (uri != null) {
-      avatarUrl = uri.toString()
-    }
-  }
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
-      Text(
-        text = dialogTitle,
-        style = MaterialTheme.typography.titleLarge,
-      )
-    },
-    text = {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(10.dp),
+  ) {
+    Surface(
+      shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+      color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+      modifier = Modifier.fillMaxWidth(),
+    ) {
       Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        // 1. Avatar and photo upload
         Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-          PersonAvatarBadge(
-            name = name.ifBlank { "Új" },
-            accentKey = accentKey,
-            imageUrl = avatarUrl,
-            size = 54.dp,
-          )
-          OutlinedButton(
-            onClick = {
-              photoPicker.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-              )
-            },
-          ) {
-            Icon(
-              imageVector = WishDropIcons.Camera,
-              contentDescription = null,
-              modifier = Modifier.size(16.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Fotó módosítása")
-          }
-        }
-
-        // 2. Name
-        OutlinedTextField(
-          value = name,
-          onValueChange = { name = it },
-          label = { Text("Név *") },
-          placeholder = { Text("pl. Dalma, Attila, Ármin") },
-          singleLine = true,
           modifier = Modifier.fillMaxWidth(),
-        )
-
-        // 3. Relationship chips & custom
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text("Kapcsolat", style = MaterialTheme.typography.labelMedium)
-          val commonRelations = listOf("Partner", "Gyerek", "Szülő", "Testvér", "Barát", "Családtag")
-          FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-          ) {
-            commonRelations.forEach { rel ->
-              FilterChip(
-                selected = relationship.equals(rel, ignoreCase = true),
-                onClick = { relationship = rel },
-                label = { Text(rel) },
-              )
-            }
-          }
-          if (commonRelations.none { it.equals(relationship, ignoreCase = true) }) {
-            OutlinedTextField(
-              value = relationship,
-              onValueChange = { relationship = it },
-              label = { Text("Egyedi kapcsolat") },
-              singleLine = true,
-              modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Column {
+            Text(
+              text = stringResource(R.string.profile_update_card_title),
+              style = MaterialTheme.typography.titleMedium,
+              fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             )
+            Text(
+              text = stringResource(R.string.profile_current_version, currentVersion),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+
+          when (updateState) {
+            ProfileUpdateState.Checking -> {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+              ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                  text = stringResource(R.string.profile_update_checking),
+                  style = MaterialTheme.typography.labelSmall,
+                  color = MaterialTheme.colorScheme.primary,
+                )
+              }
+            }
+            is ProfileUpdateState.UpToDate -> {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+              ) {
+                Icon(
+                  imageVector = WishDropIcons.CheckCircle,
+                  contentDescription = null,
+                  tint = MaterialTheme.colorScheme.primary,
+                  modifier = Modifier.size(16.dp),
+                )
+                Text(
+                  text = stringResource(R.string.profile_update_up_to_date),
+                  style = MaterialTheme.typography.labelMedium,
+                  color = MaterialTheme.colorScheme.primary,
+                  fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                )
+              }
+            }
+            else -> {}
           }
         }
 
-        // 4. Upcoming event selection (Születésnap / Évforduló / stb.)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text("Következő esemény / alkalom", style = MaterialTheme.typography.labelMedium)
-          FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-          ) {
-            eventTypes.forEach { type ->
-              FilterChip(
-                selected = selectedEventType == type,
-                onClick = {
-                  selectedEventType = type
-                  if (type == "Karácsony") {
-                    val cal = java.util.Calendar.getInstance()
-                    cal.set(java.util.Calendar.MONTH, java.util.Calendar.DECEMBER)
-                    cal.set(java.util.Calendar.DAY_OF_MONTH, 25)
-                    selectedDateMillis = cal.timeInMillis
-                  }
-                },
-                label = {
-                  val icon = when (type) {
-                    "Születésnap" -> WishDropIcons.Cake
-                    "Évforduló" -> WishDropIcons.Favorite
-                    "Karácsony" -> WishDropIcons.Holiday
-                    "Névnap" -> WishDropIcons.Botanical
-                    else -> WishDropIcons.Sparkle
-                  }
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(type)
-                  }
-                },
-              )
+        when (updateState) {
+          is ProfileUpdateState.UpdateAvailable -> {
+            Surface(
+              shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+              color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+              modifier = Modifier.fillMaxWidth(),
+            ) {
+              Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+              ) {
+                Text(
+                  text = stringResource(R.string.profile_update_available, updateState.info.latestVersion),
+                  style = MaterialTheme.typography.titleSmall,
+                  fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.primary,
+                )
+                val notes = updateState.info.releaseNotes?.trim()?.ifBlank { null }
+                  ?: stringResource(R.string.profile_update_default_notes)
+                Text(
+                  text = notes,
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                FilledTonalButton(
+                  onClick = { onDownloadAndInstall(updateState.info) },
+                  modifier = Modifier.fillMaxWidth(),
+                  shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                ) {
+                  Icon(WishDropIcons.CloudSynced, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(stringResource(R.string.profile_update_install_button))
+                }
+              }
             }
           }
-
-          if (selectedEventType == "Egyéb") {
-            OutlinedTextField(
-              value = customEventName,
-              onValueChange = { customEventName = it },
-              label = { Text("Esemény megnevezése (pl. Diplomaosztó, Házavató)") },
-              singleLine = true,
-              modifier = Modifier.fillMaxWidth(),
-            )
-          }
-        }
-
-        // 5. Date Picker (replaces "Napok az eseményig")
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-          Text("Esemény dátuma", style = MaterialTheme.typography.labelMedium)
-          OutlinedButton(
-            onClick = { showDatePicker = true },
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-          ) {
-            Icon(
-              imageVector = when (selectedEventType) {
-                "Születésnap" -> WishDropIcons.Cake
-                "Évforduló" -> WishDropIcons.Favorite
-                "Karácsony" -> WishDropIcons.Holiday
-                else -> WishDropIcons.History
-              },
-              contentDescription = null,
-              tint = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = formattedDateStr,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+          is ProfileUpdateState.Downloading -> {
+            Column(
+              modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+              verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+              LinearProgressIndicator(
+                progress = { updateState.percent / 100f },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
               )
               Text(
-                text = daysRemainingStr,
+                text = stringResource(R.string.profile_update_downloading, updateState.percent),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
               )
             }
+          }
+          is ProfileUpdateState.Error -> {
             Text(
-              text = "Módosítás",
-              style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.primary,
+              text = updateState.message,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.error,
             )
-          }
-        }
-
-        // 6. Interests (Érdeklődési körök)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-          Text("Érdeklődési körök (AI ajánlások alapja)", style = MaterialTheme.typography.labelMedium)
-
-          if (selectedInterests.isNotEmpty()) {
-            FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(6.dp),
-              verticalArrangement = Arrangement.spacedBy(4.dp),
+            OutlinedButton(
+              onClick = onCheckForUpdate,
+              modifier = Modifier.fillMaxWidth(),
             ) {
-              selectedInterests.forEach { interest ->
-                InputChip(
-                  selected = true,
-                  onClick = { selectedInterests = selectedInterests - interest },
-                  label = { Text(interest) },
-                  trailingIcon = {
-                    Icon(
-                      imageVector = WishDropIcons.Clear,
-                      contentDescription = "Törlés",
-                      modifier = Modifier.size(14.dp),
-                    )
-                  },
-                )
-              }
+              Icon(WishDropIcons.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(stringResource(R.string.profile_update_check_button))
             }
           }
-
-          val availableSuggestions = EventDateUtils.POPULAR_GIFT_INTERESTS.filter { interest ->
-            selectedInterests.none { it.equals(interest, ignoreCase = true) }
-          }
-          if (availableSuggestions.isNotEmpty()) {
-            Text(
-              text = "Gyors hozzáadás:",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            FlowRow(
-              horizontalArrangement = Arrangement.spacedBy(6.dp),
-              verticalArrangement = Arrangement.spacedBy(4.dp),
+          else -> {
+            OutlinedButton(
+              onClick = onCheckForUpdate,
+              modifier = Modifier.fillMaxWidth(),
+              enabled = updateState !is ProfileUpdateState.Checking,
             ) {
-              availableSuggestions.take(6).forEach { suggestion ->
-                SuggestionChip(
-                  onClick = { selectedInterests = selectedInterests + suggestion },
-                  label = { Text("+ $suggestion") },
-                )
-              }
-            }
-          }
-
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            OutlinedTextField(
-              value = customInterestInput,
-              onValueChange = { customInterestInput = it },
-              placeholder = { Text("Egyedi érdeklődés (pl. Jóga)...") },
-              singleLine = true,
-              modifier = Modifier.weight(1f),
-            )
-            FilledTonalButton(
-              onClick = {
-                val clean = customInterestInput.trim()
-                if (clean.isNotBlank() && selectedInterests.none { it.equals(clean, ignoreCase = true) }) {
-                  selectedInterests = selectedInterests + clean
-                  customInterestInput = ""
-                }
-              },
-              enabled = customInterestInput.isNotBlank(),
-              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-              Icon(WishDropIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(4.dp))
-              Text("Hozzáad")
+              Icon(WishDropIcons.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(stringResource(R.string.profile_update_check_button))
             }
           }
         }
-
-        // 7. Budget
-        OutlinedTextField(
-          value = budgetText,
-          onValueChange = { budgetText = it },
-          label = { Text("Ajándék keret (Ft)") },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-        )
       }
-    },
-    confirmButton = {
-      TextButton(
-        onClick = {
-          if (name.isNotBlank()) {
-            val resolvedEventName = when (selectedEventType) {
-              "Születésnap" -> "${name.trim()} születésnapja"
-              "Évforduló" -> "${name.trim()} évfordulója"
-              "Karácsony" -> "Karácsony"
-              "Névnap" -> "${name.trim()} névnapja"
-              else -> customEventName.trim().ifBlank { "${name.trim()} ünnepe" }
-            }
-            onConfirm(
-              name.trim(),
-              relationship.trim().ifBlank { "Családtag" },
-              resolvedEventName,
-              calculatedDays,
-              budgetText.toIntOrNull() ?: 25_000,
-              selectedInterests,
-              avatarUrl,
-            )
-          }
-        },
-        modifier = Modifier.minimumInteractiveComponentSize(),
-      ) {
-        Text(confirmButtonText)
-      }
-    },
-    dismissButton = {
-      TextButton(
-        onClick = onDismiss,
-        modifier = Modifier.minimumInteractiveComponentSize(),
-      ) {
-        Text(stringResource(R.string.action_cancel))
-      }
-    },
-  )
-
-  if (showDatePicker) {
-    DatePickerDialog(
-      onDismissRequest = { showDatePicker = false },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            datePickerState.selectedDateMillis?.let {
-              selectedDateMillis = it
-            }
-            showDatePicker = false
-          }
-        ) {
-          Text("OK")
-        }
-      },
-      dismissButton = {
-        TextButton(onClick = { showDatePicker = false }) {
-          Text(stringResource(R.string.action_cancel))
-        }
-      }
-    ) {
-      DatePicker(state = datePickerState)
     }
   }
 }

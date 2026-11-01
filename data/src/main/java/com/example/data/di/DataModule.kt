@@ -70,6 +70,12 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
   }
 }
 
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+  override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE gift_recipients ADD COLUMN eventsJson TEXT NOT NULL DEFAULT '[]'")
+  }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -78,7 +84,7 @@ object DatabaseModule {
   @Singleton
   fun provideWishDropDatabase(@ApplicationContext context: Context): WishDropDatabase =
     Room.databaseBuilder(context, WishDropDatabase::class.java, "wishdrop.db")
-      .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+      .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
       .fallbackToDestructiveMigration(dropAllTables = true)
       .build()
 
@@ -177,4 +183,8 @@ abstract class DataBindingsModule {
   @Binds
   @Singleton
   abstract fun bindAiProductExtractor(impl: GeminiReadyProductExtractor): AiProductExtractor
+
+  @Binds
+  @Singleton
+  abstract fun bindAppUpdateRepository(impl: com.example.data.repository.GitHubAppUpdateRepositoryImpl): com.example.domain.repository.AppUpdateRepository
 }

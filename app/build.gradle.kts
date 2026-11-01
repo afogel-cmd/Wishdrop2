@@ -28,7 +28,12 @@ android {
   // and updating Android apps in AI Studio.
   signingConfigs {
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      val keyFile = if (file("${rootDir}/signing-key.keystore").exists()) {
+        file("${rootDir}/signing-key.keystore")
+      } else {
+        file("${rootDir}/debug.keystore")
+      }
+      storeFile = keyFile
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
@@ -36,6 +41,7 @@ android {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH")
       val keyFile = if (keystorePath != null) file(keystorePath) else file("${rootDir}/my-upload-key.jks")
+      val rootSigningKeystore = file("${rootDir}/signing-key.keystore")
       val rootDebugKeystore = file("${rootDir}/debug.keystore")
       val appDebugKeystore = file("${rootDir}/app/debug.keystore")
       if (keyFile.exists()) {
@@ -43,6 +49,11 @@ android {
         storePassword = System.getenv("STORE_PASSWORD")
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD")
+      } else if (rootSigningKeystore.exists()) {
+        storeFile = rootSigningKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
       } else if (rootDebugKeystore.exists()) {
         storeFile = rootDebugKeystore
         storePassword = "android"
@@ -76,7 +87,7 @@ android {
     debug {
       // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
       // AI Studio.
-      signingConfig = if (file("${rootDir}/debug.keystore").exists()) {
+      signingConfig = if (file("${rootDir}/signing-key.keystore").exists() || file("${rootDir}/debug.keystore").exists()) {
         signingConfigs.getByName("debugConfig")
       } else {
         signingConfigs.getByName("debug")

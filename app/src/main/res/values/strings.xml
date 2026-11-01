@@ -6,4 +6,10 @@
     <string name="nav_wishlist">Wishlist</string>
     <string name="nav_insights">Insights</string>
     <string name="nav_profile">Profile</string>
+    <string name="update_dialog_title">New update available! 🎉</string>
+    <string name="update_dialog_version">Version: %1$s (Current: %2$s)</string>
+    <string name="update_default_notes">Bug fixes and stability improvements</string>
+    <string name="update_action_install">Update now</string>
+    <string name="update_action_later">Later</string>
+    <string name="update_downloading_progress">Downloading update… %1$d%%</string>
 </resources>

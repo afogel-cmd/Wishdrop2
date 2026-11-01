@@ -38,15 +38,21 @@ jobs:
           fi
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Generate debug keystore for signing fallback
+      - name: Setup signing keystore
         run: |
           mkdir -p ~/.android
-          keytool -genkey -v -keystore debug.keystore \
-            -storepass android -alias androiddebugkey -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-          cp debug.keystore app/debug.keystore
-          cp debug.keystore ~/.android/debug.keystore
+          if [ -f signing-key.keystore ]; then
+            cp signing-key.keystore debug.keystore
+            cp signing-key.keystore app/debug.keystore
+            cp signing-key.keystore ~/.android/debug.keystore
+          else
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            cp debug.keystore app/debug.keystore
+            cp debug.keystore ~/.android/debug.keystore
+          fi
 
       - name: Make gradlew executable
         run: chmod +x gradlew

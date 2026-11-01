@@ -404,7 +404,7 @@ object WishDropSeedCatalog {
         name = "Dalma",
         relationship = "Partner",
         avatarKey = "avatar_dalma",
-        upcomingEventName = "Dalma Birthday",
+        upcomingEventName = "Dalma Születésnap",
         daysUntilEvent = 15,
         budgetHuf = 45_000,
         interestsJson =
@@ -413,32 +413,95 @@ object WishDropSeedCatalog {
           ),
         giftStageName = GiftStage.WATCHING.name,
         accentKey = "coral",
+        eventsJson = json.encodeToString(
+          listOf(
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_dalma_1",
+              title = "Dalma Születésnap",
+              dateMillis = System.currentTimeMillis() + 15L * 86_400_000L,
+              eventType = "Születésnap",
+              isRecurringYearly = true,
+              note = "Kerek évforduló, virágcsokor és prémium kávé szett",
+            ),
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_dalma_2",
+              title = "Házassági Évforduló",
+              dateMillis = System.currentTimeMillis() + 110L * 86_400_000L,
+              eventType = "Évforduló",
+              isRecurringYearly = true,
+              note = "Közös wellness utazás & vacsora",
+            ),
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_dalma_3",
+              title = "Karácsony",
+              dateMillis = System.currentTimeMillis() + 61L * 86_400_000L,
+              eventType = "Karácsony",
+              isRecurringYearly = true,
+            ),
+          )
+        ),
       ),
       GiftRecipientEntity(
         id = "rec_armin",
         name = "Ármin",
         relationship = "Brother",
         avatarKey = "avatar_armin",
-        upcomingEventName = "Christmas",
+        upcomingEventName = "Karácsony",
         daysUntilEvent = 61,
         budgetHuf = 55_000,
         interestsJson =
           json.encodeToString(listOf("Technology", "Gaming", "Audio", "LEGO", "Smart Home")),
         giftStageName = GiftStage.ORDERED.name,
         accentKey = "mint",
+        eventsJson = json.encodeToString(
+          listOf(
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_armin_1",
+              title = "Karácsony",
+              dateMillis = System.currentTimeMillis() + 61L * 86_400_000L,
+              eventType = "Karácsony",
+              isRecurringYearly = true,
+            ),
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_armin_2",
+              title = "Ármin Születésnap",
+              dateMillis = System.currentTimeMillis() + 180L * 86_400_000L,
+              eventType = "Születésnap",
+              isRecurringYearly = true,
+            ),
+          )
+        ),
       ),
       GiftRecipientEntity(
         id = "rec_olivia",
         name = "Olívia",
         relationship = "Sister",
         avatarKey = "avatar_olivia",
-        upcomingEventName = "Olívia Birthday",
+        upcomingEventName = "Olívia Születésnap",
         daysUntilEvent = 74,
         budgetHuf = 38_000,
         interestsJson =
           json.encodeToString(listOf("Photography", "Design", "Fashion", "Home Decor", "Music")),
         giftStageName = GiftStage.CONSIDERING.name,
         accentKey = "lavender",
+        eventsJson = json.encodeToString(
+          listOf(
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_olivia_1",
+              title = "Olívia Születésnap",
+              dateMillis = System.currentTimeMillis() + 74L * 86_400_000L,
+              eventType = "Születésnap",
+              isRecurringYearly = true,
+            ),
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_olivia_2",
+              title = "Karácsony",
+              dateMillis = System.currentTimeMillis() + 61L * 86_400_000L,
+              eventType = "Karácsony",
+              isRecurringYearly = true,
+            ),
+          )
+        ),
       ),
       GiftRecipientEntity(
         id = "rec_attila",
@@ -452,6 +515,24 @@ object WishDropSeedCatalog {
           json.encodeToString(listOf("Pixel", "Android", "Audio", "Wearables", "Coffee")),
         giftStageName = GiftStage.WATCHING.name,
         accentKey = "indigo",
+        eventsJson = json.encodeToString(
+          listOf(
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_attila_1",
+              title = "Winter Tech Upgrade",
+              dateMillis = System.currentTimeMillis() + 61L * 86_400_000L,
+              eventType = "Egyéb",
+              isRecurringYearly = false,
+            ),
+            com.example.domain.model.FamilyMemberEvent(
+              id = "evt_attila_2",
+              title = "Karácsony",
+              dateMillis = System.currentTimeMillis() + 61L * 86_400_000L,
+              eventType = "Karácsony",
+              isRecurringYearly = true,
+            ),
+          )
+        ),
       ),
     )
 

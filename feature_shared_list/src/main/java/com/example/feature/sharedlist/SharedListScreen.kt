@@ -112,6 +112,7 @@ fun SharedListRouteScreen(
       onRemoveMember = viewModel::removeMember,
       onSendInvitation = viewModel::sendInvitation,
       onAcceptInvitation = viewModel::acceptInvitation,
+      onDeclineInvitation = viewModel::declineInvitation,
       onAddQuickProduct = viewModel::addQuickProduct,
       modifier = Modifier.padding(innerPadding),
     )
@@ -129,6 +130,7 @@ fun SharedListScreenContent(
   onRemoveMember: (String) -> Unit = {},
   onSendInvitation: (String, ListMemberRole) -> Unit,
   onAcceptInvitation: (String) -> Unit,
+  onDeclineInvitation: (String) -> Unit = {},
   onAddQuickProduct: (String, String, Int) -> Unit,
   modifier: Modifier = Modifier,
   onUpdateListDetails: (String, String, String, ListVisibility, String?) -> Unit = { _, _, _, _, _ -> },
@@ -379,6 +381,7 @@ fun SharedListScreenContent(
                   PendingInvitationRowCard(
                     invitation = invite,
                     onAccept = { onAcceptInvitation(invite.id) },
+                    onDecline = { onDeclineInvitation(invite.id) },
                   )
                 }
               }

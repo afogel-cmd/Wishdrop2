@@ -88,6 +88,19 @@ class MainActivity : ComponentActivity() {
         }
       }
 
+      val updateDialogState by appViewModel.updateDialogState.collectAsStateWithLifecycle()
+
+      val currentVersionName = androidx.compose.runtime.remember(activity) {
+        runCatching {
+          val pInfo = activity.packageManager.getPackageInfo(activity.packageName, 0)
+          pInfo.versionName ?: "1.0"
+        }.getOrDefault("1.0")
+      }
+
+      androidx.compose.runtime.LaunchedEffect(Unit) {
+        appViewModel.checkForStartupUpdate(currentVersionName)
+      }
+
       androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.ui.platform.LocalConfiguration provides updatedConfiguration,
         androidx.compose.ui.platform.LocalContext provides localizedContext,
@@ -97,6 +110,26 @@ class MainActivity : ComponentActivity() {
           useDynamicColor = preferences.useDynamicColor,
         ) {
           WishDropAppShell(widthSizeClass = windowSizeClass.widthSizeClass)
+
+          when (val state = updateDialogState) {
+            is AppUpdateDialogState.Hidden -> {}
+            is AppUpdateDialogState.Available -> {
+              AppUpdateDialog(
+                updateInfo = state.info,
+                downloadPercent = null,
+                onDismiss = appViewModel::dismissUpdateDialog,
+                onInstall = { appViewModel.downloadAndInstall(activity, state.info) },
+              )
+            }
+            is AppUpdateDialogState.Downloading -> {
+              AppUpdateDialog(
+                updateInfo = state.info,
+                downloadPercent = state.percent,
+                onDismiss = appViewModel::dismissUpdateDialog,
+                onInstall = {},
+              )
+            }
+          }
         }
       }
     }

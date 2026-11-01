@@ -9,15 +9,21 @@ import com.example.data.local.dao.SharedListDao
 import com.example.data.local.dao.UserAndFamilyDao
 import com.example.data.local.entity.ActivityEventEntity
 import com.example.data.local.entity.CommentEntity
+import com.example.data.local.entity.GiftRecipientEntity
 import com.example.data.local.entity.ListInvitationEntity
 import com.example.data.local.entity.ListMemberEntity
 import com.example.data.local.entity.ProductEntity
 import com.example.data.local.entity.SharedListEntity
 import com.example.data.local.entity.UserEntity
+import com.example.data.remote.CloudFamilyMemberDto
+import com.example.data.remote.CloudProductDto
+import com.example.data.remote.CloudSharedListDto
+import com.example.data.remote.CloudUserDto
 import com.example.data.remote.SupabaseRemoteDataSource
 import com.example.data.seed.WishDropSeedCatalog
 import com.example.domain.model.ActivityEvent
 import com.example.domain.model.FamilyPersona
+import com.example.domain.model.GiftStage
 import com.example.domain.model.InvitationStatus
 import com.example.domain.model.ListInvitation
 import com.example.domain.model.ListMemberRole
@@ -257,6 +263,18 @@ constructor(
           put("visibility", visibility.name)
         },
     )
+    remoteDataSource.upsertSharedList(
+      CloudSharedListDto(
+        id = listId,
+        title = listEntity.title,
+        emoji = listEntity.emoji,
+        subtitle = listEntity.subtitle,
+        ownerMemberId = listEntity.ownerMemberId,
+        visibility = listEntity.visibility,
+        eventDateLabel = listEntity.eventDateLabel,
+        updatedAtMs = listEntity.updatedAtMillis,
+      )
+    )
     return listId
   }
 
@@ -273,11 +291,14 @@ constructor(
       else hiddenFromMemberId
     val hiddenRecipient = resolvedHiddenId?.let { recipientDao.getRecipientById(it) }
     val now = System.currentTimeMillis()
+    val cleanTitle = title.trim().ifBlank { "Shared Wishlist" }
+    val cleanEmoji = emoji.trim().ifBlank { "🎁" }
+    val cleanSub = subtitle.trim().ifBlank { "Collaborative family wishlist" }
     sharedListDao.updateSharedListDetails(
       listId = listId,
-      title = title.trim().ifBlank { "Shared Wishlist" },
-      emoji = emoji.trim().ifBlank { "🎁" },
-      subtitle = subtitle.trim().ifBlank { "Collaborative family wishlist" },
+      title = cleanTitle,
+      emoji = cleanEmoji,
+      subtitle = cleanSub,
       visibility = visibility.name,
       hiddenFromMemberId = hiddenRecipient?.id,
       hiddenFromMemberName = hiddenRecipient?.name,
@@ -287,12 +308,25 @@ constructor(
       sharedListId = listId,
       hiddenFromMemberId = hiddenRecipient?.id,
     )
+    remoteDataSource.upsertSharedList(
+      CloudSharedListDto(
+        id = listId,
+        title = cleanTitle,
+        emoji = cleanEmoji,
+        subtitle = cleanSub,
+        ownerMemberId = "rec_attila",
+        visibility = visibility.name,
+        eventDateLabel = if (hiddenRecipient != null) "Secret • Hidden from ${hiddenRecipient.name}" else visibility.label,
+        updatedAtMs = now,
+      )
+    )
   }
 
   override suspend fun deleteSharedList(listId: String) {
     sharedListDao.deleteSharedList(listId)
     sharedListDao.deleteListMembers(listId)
     productDao.clearSharedListFromProducts(listId)
+    remoteDataSource.deleteSharedList(listId)
   }
 
   override suspend fun updateListVisibility(
@@ -659,6 +693,12 @@ constructor(
       remoteDataSource.notifyLocalMutation("list_members", "INSERT")
       invite.listId
     }
+
+  override suspend fun declineInvitation(invitationId: String): Result<Unit> =
+    runCatching {
+      collaborationDao.updateInvitationStatus(invitationId, InvitationStatus.DECLINED.name)
+      remoteDataSource.notifyLocalMutation("list_invitations", "UPDATE")
+    }
 }
 
 @Singleton
@@ -667,6 +707,9 @@ class SupabaseFamilyAuthRepository
 constructor(
   private val initializer: DatabaseInitializer,
   private val userAndFamilyDao: UserAndFamilyDao,
+  private val productDao: ProductDao,
+  private val recipientDao: GiftRecipientDao,
+  private val sharedListDao: SharedListDao,
   private val preferencesRepository: UserPreferencesRepository,
   private val remoteDataSource: SupabaseRemoteDataSource,
 ) : AuthRepository {
@@ -705,6 +748,8 @@ constructor(
         email = cleanEmail,
         displayName = displayName,
       )
+      // Sync cloud data into local Room cache immediately
+      syncWithCloud(cleanEmail)
       displayName
     }
   }
@@ -735,8 +780,192 @@ constructor(
         email = cleanEmail,
         displayName = cleanName,
       )
+      // Push local user profile to remote cloud
+      remoteDataSource.upsertUserProfile(
+        CloudUserDto(
+          id = userId,
+          email = cleanEmail,
+          displayName = cleanName,
+          avatarKey = "avatar_attila",
+          linkedMemberId = "rec_attila",
+        )
+      )
       cleanName
     }
+  }
+
+  override suspend fun saveCustomCloudConfig(url: String, anonKey: String): Result<Boolean> {
+    val cleanUrl = url.trim()
+    val cleanKey = anonKey.trim()
+    val testRes = remoteDataSource.testConnection(cleanUrl, cleanKey)
+    if (testRes.isFailure || testRes.getOrDefault(false) == false) {
+      return Result.failure(Exception("Nem sikerült kapcsolódni a megadott Supabase szerverhez. Ellenőrizd az URL-t és az Anon Key-t."))
+    }
+    preferencesRepository.setCustomSupabaseConfig(cleanUrl, cleanKey)
+    val prefs = preferencesRepository.preferencesFlow.first()
+    syncWithCloud(prefs.email)
+    return Result.success(true)
+  }
+
+  override suspend fun syncWithCloud(email: String): Result<String> {
+    initializer.ensureSeeded()
+    val cleanEmail = email.trim()
+    val cfg = remoteDataSource.getEffectiveConfig()
+    if (!cfg.isConfigured) {
+      return Result.success("Helyi cache aktív • Felhő szinkronhoz állítsd be a Supabase szervert.")
+    }
+
+    // 1. User Profile Sync
+    val remoteUser = remoteDataSource.fetchUserProfile(cleanEmail).getOrNull()
+    val currentPrefs = preferencesRepository.preferencesFlow.first()
+    if (remoteUser != null) {
+      preferencesRepository.updateProfile(
+        displayName = remoteUser.displayName,
+        email = remoteUser.email,
+        avatarUrl = remoteUser.avatarUrl,
+      )
+    } else {
+      remoteDataSource.upsertUserProfile(
+        CloudUserDto(
+          id = currentPrefs.supabaseUserId ?: "usr_${cleanEmail.hashCode()}",
+          email = cleanEmail,
+          displayName = currentPrefs.displayName,
+          avatarKey = "avatar_attila",
+          linkedMemberId = currentPrefs.activeMemberId,
+          avatarUrl = currentPrefs.avatarUrl,
+        )
+      )
+    }
+
+    // 2. Family Members & Recipients Sync
+    val remoteMembers = remoteDataSource.fetchFamilyMembers().getOrDefault(emptyList())
+    if (remoteMembers.isNotEmpty()) {
+      val entities = remoteMembers.map { m ->
+        GiftRecipientEntity(
+          id = m.id,
+          name = m.name,
+          relationship = m.relationship,
+          avatarKey = m.avatarKey,
+          upcomingEventName = m.upcomingEventName,
+          daysUntilEvent = m.daysUntilEvent,
+          budgetHuf = m.budgetHuf,
+          interestsJson = m.interestsJson,
+          giftStageName = GiftStage.IDEA.name,
+          accentKey = m.accentKey,
+          avatarUrl = m.avatarUrl,
+          eventsJson = m.eventsJson,
+        )
+      }
+      recipientDao.upsertRecipients(entities)
+    } else {
+      val localRecipients = recipientDao.getAllSnapshot()
+      localRecipients.forEach { r ->
+        remoteDataSource.upsertFamilyMember(
+          CloudFamilyMemberDto(
+            id = r.id,
+            name = r.name,
+            email = null,
+            relationship = r.relationship,
+            avatarKey = r.avatarKey,
+            accentKey = r.accentKey,
+            upcomingEventName = r.upcomingEventName,
+            daysUntilEvent = r.daysUntilEvent,
+            budgetHuf = r.budgetHuf,
+            interestsJson = r.interestsJson,
+            eventsJson = r.eventsJson,
+            avatarUrl = r.avatarUrl,
+          )
+        )
+      }
+    }
+
+    // 3. Products Sync
+    val remoteProducts = remoteDataSource.fetchProducts().getOrDefault(emptyList())
+    if (remoteProducts.isNotEmpty()) {
+      val productEntities = remoteProducts.map { p ->
+        val orig = if (p.originalPriceHuf > 0) p.originalPriceHuf else p.currentPriceHuf
+        val savings = (orig - p.currentPriceHuf).coerceAtLeast(0)
+        val percent = if (orig > 0 && savings > 0) (savings * 100) / orig else 0
+        ProductEntity(
+          id = p.id,
+          title = p.title,
+          store = p.store,
+          currentPriceHuf = p.currentPriceHuf,
+          originalPriceHuf = orig,
+          priceChangePercent = percent,
+          savingsHuf = savings,
+          imageKey = p.imageUrl ?: "item_default",
+          sourceUrl = p.affiliateUrl,
+          categoriesJson = "[\"Gift\"]",
+          tagsJson = p.tagsJson.ifBlank { "[]" },
+          isPurchased = p.isPurchased,
+          isArchived = p.isArchived,
+          isPriceAlertEnabled = true,
+          notes = p.notes,
+          sharedListId = p.sharedListId,
+          recipientId = p.recipientId,
+          createdAtMillis = System.currentTimeMillis(),
+        )
+      }
+      productDao.upsertProducts(productEntities)
+    } else {
+      val localProducts = productDao.getAllSnapshot()
+      localProducts.forEach { p ->
+        remoteDataSource.upsertProduct(
+          CloudProductDto(
+            id = p.id,
+            title = p.title,
+            store = p.store,
+            currentPriceHuf = p.currentPriceHuf,
+            originalPriceHuf = p.originalPriceHuf,
+            imageUrl = p.imageKey,
+            affiliateUrl = p.sourceUrl,
+            isPurchased = p.isPurchased,
+            isArchived = p.isArchived,
+            recipientId = p.recipientId,
+            sharedListId = p.sharedListId,
+            notes = p.notes,
+            tagsJson = p.tagsJson,
+          )
+        )
+      }
+    }
+
+    // 4. Shared Lists Sync
+    val remoteLists = remoteDataSource.fetchSharedLists().getOrDefault(emptyList())
+    if (remoteLists.isNotEmpty()) {
+      val listEntities = remoteLists.map { l ->
+        SharedListEntity(
+          id = l.id,
+          title = l.title,
+          emoji = l.emoji,
+          subtitle = l.subtitle,
+          ownerMemberId = l.ownerMemberId,
+          visibility = l.visibility,
+          eventDateLabel = l.eventDateLabel,
+          updatedAtMillis = l.updatedAtMs,
+        )
+      }
+      sharedListDao.upsertSharedLists(listEntities)
+    } else {
+      val localLists = sharedListDao.getAllSharedListsSnapshot()
+      localLists.forEach { l ->
+        remoteDataSource.upsertSharedList(
+          CloudSharedListDto(
+            id = l.id,
+            title = l.title,
+            emoji = l.emoji,
+            subtitle = l.subtitle,
+            ownerMemberId = l.ownerMemberId,
+            visibility = l.visibility,
+            eventDateLabel = l.eventDateLabel,
+            updatedAtMs = l.updatedAtMillis,
+          )
+        )
+      }
+    }
+
+    return Result.success("Felhő szinkronizáció sikeres és naprakész!")
   }
 
   override suspend fun signOutCloudSession() {

@@ -87,6 +87,7 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: Release ${{ steps.vars.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           files: app/build/outputs/apk/release/*.apk
           generate_release_notes: true
           draft: false

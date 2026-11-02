@@ -133,6 +133,7 @@ fun FamilyMemberProfileDialog(
     )
   }
 
+  val context = androidx.compose.ui.platform.LocalContext.current
   var editingEvent by remember { mutableStateOf<FamilyMemberEvent?>(null) }
   var showAddEventDialog by rememberSaveable { mutableStateOf(false) }
   var showDeleteConfirmDialog by rememberSaveable { mutableStateOf(false) }
@@ -141,7 +142,18 @@ fun FamilyMemberProfileDialog(
     ActivityResultContracts.PickVisualMedia()
   ) { uri: Uri? ->
     if (uri != null) {
-      avatarUrl = uri.toString()
+      runCatching {
+        val avatarDir = java.io.File(context.filesDir, "avatars").apply { mkdirs() }
+        val avatarFile = java.io.File(avatarDir, "member_avatar_${System.currentTimeMillis()}.jpg")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+          avatarFile.outputStream().use { output ->
+            input.copyTo(output)
+          }
+        }
+        avatarUrl = Uri.fromFile(avatarFile).toString()
+      }.onFailure {
+        avatarUrl = uri.toString()
+      }
     }
   }
 
@@ -476,25 +488,65 @@ fun FamilyMemberProfileDialog(
               )
 
               // Interests & Hobbies
-              Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Érdeklődési körök & Hobbik (AI ajánláshoz)", style = MaterialTheme.typography.labelMedium)
-                FlowRow(
-                  horizontalArrangement = Arrangement.spacedBy(6.dp),
-                  verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                  EventDateUtils.POPULAR_GIFT_INTERESTS.forEach { tag ->
-                    val isSelected = selectedInterests.any { it.equals(tag, ignoreCase = true) }
-                    FilterChip(
-                      selected = isSelected,
-                      onClick = {
-                        selectedInterests = if (isSelected) {
-                          selectedInterests.filterNot { it.equals(tag, ignoreCase = true) }
-                        } else {
-                          selectedInterests + tag
-                        }
-                      },
-                      label = { Text(tag) },
-                    )
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                  "Érdeklődési körök & Hobbik (AI ajánláshoz)",
+                  style = MaterialTheme.typography.labelMedium,
+                )
+
+                // Currently active / added interests
+                if (selectedInterests.isNotEmpty()) {
+                  Text(
+                    "Kiválasztott érdeklődési körök:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                  )
+                  FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                  ) {
+                    selectedInterests.forEach { interest ->
+                      FilterChip(
+                        selected = true,
+                        onClick = {
+                          selectedInterests = selectedInterests.filterNot { it.equals(interest, ignoreCase = true) }
+                        },
+                        label = { Text(interest) },
+                        trailingIcon = {
+                          Icon(
+                            imageVector = WishDropIcons.Clear,
+                            contentDescription = "Törlés",
+                            modifier = Modifier.size(14.dp),
+                          )
+                        },
+                      )
+                    }
+                  }
+                }
+
+                // Suggestions from popular gift interests
+                val availablePopular = EventDateUtils.POPULAR_GIFT_INTERESTS.filter { tag ->
+                  selectedInterests.none { it.equals(tag, ignoreCase = true) }
+                }
+                if (availablePopular.isNotEmpty()) {
+                  Text(
+                    "Javasolt hobbik & témák:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                  ) {
+                    availablePopular.take(8).forEach { tag ->
+                      FilterChip(
+                        selected = false,
+                        onClick = {
+                          selectedInterests = selectedInterests + tag
+                        },
+                        label = { Text("+ $tag") },
+                      )
+                    }
                   }
                 }
 
@@ -510,7 +562,7 @@ fun FamilyMemberProfileDialog(
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                   )
-                  Button(
+                  FilledTonalButton(
                     onClick = {
                       val clean = customInterestInput.trim()
                       if (clean.isNotBlank() && selectedInterests.none { it.equals(clean, ignoreCase = true) }) {
@@ -520,7 +572,13 @@ fun FamilyMemberProfileDialog(
                     },
                     enabled = customInterestInput.isNotBlank(),
                   ) {
-                    Text("+")
+                    Icon(
+                      imageVector = WishDropIcons.Add,
+                      contentDescription = "Hozzáadás",
+                      modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Hozzáad")
                   }
                 }
               }

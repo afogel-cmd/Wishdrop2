@@ -63,6 +63,19 @@ import com.google.android.gms.common.api.ApiException
 
 
 
+fun getAvatarUrlForEmail(email: String): String {
+  val clean = email.trim().lowercase()
+  if (clean.isBlank()) return "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&h=256&q=80"
+  val md5 = try {
+    java.security.MessageDigest.getInstance("MD5")
+      .digest(clean.toByteArray(Charsets.UTF_8))
+      .joinToString("") { "%02x".format(it) }
+  } catch (e: Exception) {
+    clean.hashCode().toString()
+  }
+  return "https://www.gravatar.com/avatar/$md5?d=identicon&s=256"
+}
+
 @Composable
 internal fun UnifiedProfileGoogleSyncCard(
   preferences: UserPreferences,
@@ -79,6 +92,20 @@ internal fun UnifiedProfileGoogleSyncCard(
   val extended = WishDropDesign.colors
   val context = LocalContext.current
 
+  androidx.compose.runtime.LaunchedEffect(preferences.isCloudAuthenticated, preferences.email) {
+    if (preferences.isCloudAuthenticated && preferences.email.contains("@")) {
+      val currentAvatar = preferences.avatarUrl
+      if (currentAvatar.isNullOrBlank() || currentAvatar.startsWith("content://")) {
+        val lastAccount = GoogleSignIn.getLastSignedInAccount(context)
+        val photo = lastAccount?.photoUrl?.let { uri ->
+          val uriStr = uri.toString()
+          if (uriStr.contains("=s96-c")) uriStr.replace("=s96-c", "=s384-c") else uriStr
+        } ?: getAvatarUrlForEmail(preferences.email)
+        onSignInGoogle(preferences.displayName, preferences.email, photo)
+      }
+    }
+  }
+
   val googleSignInLauncher = rememberLauncherForActivityResult(
     ActivityResultContracts.StartActivityForResult()
   ) { result ->
@@ -88,7 +115,10 @@ internal fun UnifiedProfileGoogleSyncCard(
       if (account != null) {
         val name = account.displayName ?: account.givenName ?: "Google Felhasználó"
         val emailAddress = account.email ?: "google.user@gmail.com"
-        val photoUrl = account.photoUrl?.toString()
+        val photoUrl = account.photoUrl?.let { uri ->
+          val uriStr = uri.toString()
+          if (uriStr.contains("=s96-c")) uriStr.replace("=s96-c", "=s384-c") else uriStr
+        } ?: getAvatarUrlForEmail(emailAddress)
         onSignInGoogle(name, emailAddress, photoUrl)
       } else {
         showGoogleDialog = true
@@ -295,9 +325,14 @@ internal fun UnifiedProfileGoogleSyncCard(
         }
       )
     }
+    val currentAvatar = preferences.avatarUrl
     var gAvatarUrl by rememberSaveable {
       mutableStateOf(
-        preferences.avatarUrl ?: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&h=200&q=80"
+        if (!currentAvatar.isNullOrBlank() && !currentAvatar.startsWith("content://")) {
+          currentAvatar
+        } else {
+          getAvatarUrlForEmail(gEmail)
+        }
       )
     }
 
@@ -320,7 +355,12 @@ internal fun UnifiedProfileGoogleSyncCard(
           )
           OutlinedTextField(
             value = gEmail,
-            onValueChange = { gEmail = it },
+            onValueChange = {
+              gEmail = it
+              if (gAvatarUrl.contains("gravatar.com") || gAvatarUrl.contains("unsplash.com")) {
+                gAvatarUrl = getAvatarUrlForEmail(it)
+              }
+            },
             label = { Text("Google E-mail Cím") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -332,6 +372,17 @@ internal fun UnifiedProfileGoogleSyncCard(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
           )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+          ) {
+            TextButton(
+              onClick = { gAvatarUrl = getAvatarUrlForEmail(gEmail) },
+              contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+            ) {
+              Text("Profilkép frissítése emailből", style = MaterialTheme.typography.labelSmall)
+            }
+          }
         }
       },
       confirmButton = {
@@ -566,60 +617,96 @@ internal fun FamilyMemberChipCard(
     shape = WishDropDesign.radii.medium,
     modifier = Modifier.width(260.dp).testTag("profile_member_${member.id}"),
   ) {
-    Row(
+    Column(
       modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Row(
-        modifier = Modifier.weight(1f).clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
       ) {
-        PersonAvatarBadge(
-          name = member.name,
-          accentKey = member.accentKey,
-          imageUrl = member.avatarUrl,
-          size = 40.dp,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-          Text(
-            text = member.name,
-            style = MaterialTheme.typography.titleSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Row(
+          modifier = Modifier.weight(1f).clickable(onClick = onClick),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+          PersonAvatarBadge(
+            name = member.name,
+            accentKey = member.accentKey,
+            imageUrl = member.avatarUrl,
+            size = 40.dp,
           )
-          Text(
-            text = member.relationship,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = member.name,
+              style = MaterialTheme.typography.titleSmall,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+              text = member.relationship,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+          }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          IconButton(
+            onClick = onEdit,
+            modifier = Modifier.size(32.dp).testTag("profile_edit_member_${member.id}"),
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Edit,
+              contentDescription = "Szerkesztés",
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(18.dp),
+            )
+          }
+          IconButton(
+            onClick = { showConfirmDialog = true },
+            modifier = Modifier.size(32.dp).testTag("profile_delete_member_${member.id}"),
+          ) {
+            Icon(
+              imageVector = WishDropIcons.Delete,
+              contentDescription = "Delete member",
+              tint = MaterialTheme.colorScheme.error,
+              modifier = Modifier.size(18.dp),
+            )
+          }
         }
       }
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-          onClick = onEdit,
-          modifier = Modifier.size(32.dp).testTag("profile_edit_member_${member.id}"),
+
+      if (member.interests.isNotEmpty()) {
+        Row(
+          modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+          horizontalArrangement = Arrangement.spacedBy(4.dp),
+          verticalAlignment = Alignment.CenterVertically,
         ) {
-          Icon(
-            imageVector = WishDropIcons.Edit,
-            contentDescription = "Szerkesztés",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp),
-          )
-        }
-        IconButton(
-          onClick = { showConfirmDialog = true },
-          modifier = Modifier.size(32.dp).testTag("profile_delete_member_${member.id}"),
-        ) {
-          Icon(
-            imageVector = WishDropIcons.Delete,
-            contentDescription = "Delete member",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(18.dp),
-          )
+          member.interests.take(3).forEach { interest ->
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+            ) {
+              Text(
+                text = interest,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+              )
+            }
+          }
+          if (member.interests.size > 3) {
+            Text(
+              text = "+${member.interests.size - 3}",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
         }
       }
     }

@@ -819,11 +819,21 @@ constructor(
     val remoteUser = remoteDataSource.fetchUserProfile(cleanEmail).getOrNull()
     val currentPrefs = preferencesRepository.preferencesFlow.first()
     if (remoteUser != null) {
+      val remoteAvatar = remoteUser.avatarUrl?.takeIf { it.isNotBlank() && !it.startsWith("content://") }
+      val localAvatar = currentPrefs.avatarUrl?.takeIf { it.isNotBlank() && !it.startsWith("content://") }
+      val mergedAvatarUrl = remoteAvatar ?: localAvatar
+
       preferencesRepository.updateProfile(
-        displayName = remoteUser.displayName,
+        displayName = if (remoteUser.displayName.isNotBlank()) remoteUser.displayName else currentPrefs.displayName,
         email = remoteUser.email,
-        avatarUrl = remoteUser.avatarUrl,
+        avatarUrl = mergedAvatarUrl,
       )
+
+      if (remoteUser.avatarUrl.isNullOrBlank() && !mergedAvatarUrl.isNullOrBlank()) {
+        remoteDataSource.upsertUserProfile(
+          remoteUser.copy(avatarUrl = mergedAvatarUrl)
+        )
+      }
     } else {
       remoteDataSource.upsertUserProfile(
         CloudUserDto(
@@ -832,7 +842,7 @@ constructor(
           displayName = currentPrefs.displayName,
           avatarKey = "avatar_attila",
           linkedMemberId = currentPrefs.activeMemberId,
-          avatarUrl = currentPrefs.avatarUrl,
+          avatarUrl = currentPrefs.avatarUrl?.takeIf { !it.startsWith("content://") },
         )
       )
     }

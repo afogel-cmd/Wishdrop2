@@ -32,7 +32,7 @@
     <string name="profile_export_data">Adatok exportálása (JSON)</string>
     <string name="profile_import_data">Adatok importálása (JSON)</string>
     <string name="profile_account_section">Fiók</string>
-    <string name="profile_vault_status">Offline-First Helyi Adattár + Felhő szinkron kész</string>
+    <string name="profile_vault_status">Naprakész</string>
     <string name="profile_reset_catalog">Alapértelmezett katalógus visszaállítása</string>
     <string name="dialog_edit_profile">Profil szerkesztése</string>
     <string name="dialog_display_name">Megjelenített név</string>

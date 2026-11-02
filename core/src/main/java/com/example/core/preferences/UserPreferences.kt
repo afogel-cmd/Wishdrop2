@@ -95,7 +95,24 @@ private val Context.wishDropDataStore: DataStore<Preferences> by
 @Singleton
 class DataStoreUserPreferencesRepository
 @Inject
-constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepository {
+constructor(
+  @ApplicationContext private val context: Context,
+  private val dataStore: DataStore<Preferences>,
+) : UserPreferencesRepository {
+
+  private fun sanitizeAvatarUrl(url: String?): String? {
+    if (url.isNullOrBlank()) return null
+    if (!url.startsWith("content://")) return url
+    return runCatching {
+      val uri = android.net.Uri.parse(url)
+      val avatarDir = java.io.File(context.filesDir, "avatars").apply { mkdirs() }
+      val localFile = java.io.File(avatarDir, "migrated_avatar.jpg")
+      context.contentResolver.openInputStream(uri)?.use { input ->
+        localFile.outputStream().use { output -> input.copyTo(output) }
+      }
+      android.net.Uri.fromFile(localFile).toString()
+    }.getOrNull()
+  }
 
   private object Keys {
     val ACTIVE_MEMBER_ID = stringPreferencesKey("active_member_id")
@@ -126,11 +143,17 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       val langString = prefs[Keys.APP_LANGUAGE] ?: AppLanguage.HUNGARIAN.name
       val lang =
         runCatching { AppLanguage.valueOf(langString) }.getOrDefault(AppLanguage.HUNGARIAN)
+      val rawAvatar = prefs[Keys.AVATAR_URL]
+      val safeAvatar = if (rawAvatar?.startsWith("content://") == true) {
+        sanitizeAvatarUrl(rawAvatar)
+      } else {
+        rawAvatar
+      }
       UserPreferences(
         activeMemberId = prefs[Keys.ACTIVE_MEMBER_ID] ?: "rec_attila",
         displayName = prefs[Keys.DISPLAY_NAME] ?: "Saját profil",
         email = prefs[Keys.EMAIL] ?: "felhasznalo@gmail.com",
-        avatarUrl = prefs[Keys.AVATAR_URL],
+        avatarUrl = safeAvatar,
         isCloudAuthenticated = prefs[Keys.IS_CLOUD_AUTH] ?: false,
         supabaseUserId = prefs[Keys.SUPABASE_USER_ID],
         supabaseAccessToken = prefs[Keys.SUPABASE_ACCESS_TOKEN],
@@ -197,8 +220,9 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
     dataStore.edit {
       it[Keys.DISPLAY_NAME] = displayName.trim().ifBlank { "Saját profil" }
       it[Keys.EMAIL] = email.trim().ifBlank { "felhasznalo@gmail.com" }
-      if (!avatarUrl.isNullOrBlank()) {
-        it[Keys.AVATAR_URL] = avatarUrl
+      val safeAvatar = if (avatarUrl?.startsWith("content://") == true) sanitizeAvatarUrl(avatarUrl) else avatarUrl
+      if (!safeAvatar.isNullOrBlank()) {
+        it[Keys.AVATAR_URL] = safeAvatar
       } else if (avatarUrl != null) {
         it.remove(Keys.AVATAR_URL)
       }
@@ -242,8 +266,11 @@ constructor(private val dataStore: DataStore<Preferences>) : UserPreferencesRepo
       if (!displayName.isNullOrBlank()) {
         it[Keys.DISPLAY_NAME] = displayName.trim()
       }
-      if (!avatarUrl.isNullOrBlank()) {
-        it[Keys.AVATAR_URL] = avatarUrl
+      val safeAvatar = if (avatarUrl?.startsWith("content://") == true) sanitizeAvatarUrl(avatarUrl) else avatarUrl
+      if (!safeAvatar.isNullOrBlank()) {
+        it[Keys.AVATAR_URL] = safeAvatar
+      } else if (avatarUrl == "") {
+        it.remove(Keys.AVATAR_URL)
       }
     }
   }

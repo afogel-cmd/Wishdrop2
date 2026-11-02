@@ -31,7 +31,7 @@
     <string name="profile_export_data">Export Data (JSON)</string>
     <string name="profile_import_data">Import Data (JSON)</string>
     <string name="profile_account_section">Account</string>
-    <string name="profile_vault_status">Offline-First Room Vault + Supabase Realtime Ready</string>
+    <string name="profile_vault_status">Up to date</string>
     <string name="profile_reset_catalog">Restore Default Catalog</string>
     <string name="dialog_edit_profile">Edit Profile</string>
     <string name="dialog_display_name">Display Name</string>

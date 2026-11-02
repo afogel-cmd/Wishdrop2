@@ -240,6 +240,7 @@ fun ProfileScreenContent(
     }
 
     is ProfileUiState.Success -> {
+      val context = LocalContext.current
       var showEditDialog by rememberSaveable { mutableStateOf(false) }
       var showAddMemberDialog by rememberSaveable { mutableStateOf(false) }
       var editingMember by remember { mutableStateOf<GiftRecipient?>(null) }
@@ -564,7 +565,18 @@ fun ProfileScreenContent(
           ActivityResultContracts.PickVisualMedia()
         ) { uri ->
           if (uri != null) {
-            editAvatarUrl = uri.toString()
+            runCatching {
+              val avatarDir = java.io.File(context.filesDir, "avatars").apply { mkdirs() }
+              val avatarFile = java.io.File(avatarDir, "user_avatar_${System.currentTimeMillis()}.jpg")
+              context.contentResolver.openInputStream(uri)?.use { input ->
+                avatarFile.outputStream().use { output ->
+                  input.copyTo(output)
+                }
+              }
+              editAvatarUrl = android.net.Uri.fromFile(avatarFile).toString()
+            }.onFailure {
+              editAvatarUrl = uri.toString()
+            }
           }
         }
 

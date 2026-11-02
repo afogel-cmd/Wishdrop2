@@ -633,6 +633,13 @@ constructor(
     remoteDataSource.deleteProduct(productId)
   }
 
+  override suspend fun deleteProducts(productIds: List<String>) {
+    if (productIds.isEmpty()) return
+    productDao.deleteProducts(productIds)
+    remoteDataSource.notifyLocalMutation("products", "DELETE_BATCH")
+    productIds.forEach { remoteDataSource.deleteProduct(it) }
+  }
+
   override suspend fun togglePriceAlert(productId: String) {
     productDao.togglePriceAlert(productId)
   }

@@ -21,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -62,7 +63,16 @@ import com.example.navigation.navigateToWishlistSearch
 fun WishDropAppShell(
   widthSizeClass: WindowWidthSizeClass,
   navController: NavHostController = rememberNavController(),
+  sharedUrl: String? = null,
+  onClearSharedUrl: () -> Unit = {},
 ) {
+  LaunchedEffect(sharedUrl) {
+    if (!sharedUrl.isNullOrBlank()) {
+      navController.navigateToAddProduct(mode = "URL", initialUrl = sharedUrl)
+      onClearSharedUrl()
+    }
+  }
+
   val backStackEntry by navController.currentBackStackEntryAsState()
   val currentDestination = backStackEntry?.destination
   val isCompact = widthSizeClass == WindowWidthSizeClass.Compact

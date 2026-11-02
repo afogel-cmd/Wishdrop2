@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,6 +12,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.preferences.ThemeMode
@@ -19,9 +21,12 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+  private val sharedUrlState = mutableStateOf<String?>(null)
+
   @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    handleShareIntent(intent)
     enableEdgeToEdge()
     setContent {
       val appViewModel: AppViewModel = hiltViewModel()
@@ -109,7 +114,11 @@ class MainActivity : ComponentActivity() {
           themeMode = preferences.themeMode,
           useDynamicColor = preferences.useDynamicColor,
         ) {
-          WishDropAppShell(widthSizeClass = windowSizeClass.widthSizeClass)
+          WishDropAppShell(
+            widthSizeClass = windowSizeClass.widthSizeClass,
+            sharedUrl = sharedUrlState.value,
+            onClearSharedUrl = { sharedUrlState.value = null },
+          )
 
           when (val state = updateDialogState) {
             is AppUpdateDialogState.Hidden -> {}
@@ -131,6 +140,20 @@ class MainActivity : ComponentActivity() {
             }
           }
         }
+      }
+    }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    handleShareIntent(intent)
+  }
+
+  private fun handleShareIntent(intent: Intent?) {
+    if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
+      val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+      if (!text.isNullOrBlank()) {
+        sharedUrlState.value = text
       }
     }
   }

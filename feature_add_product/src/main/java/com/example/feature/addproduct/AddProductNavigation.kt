@@ -13,6 +13,7 @@ fun NavGraphBuilder.addProductScreen(
     val args = entry.toRoute<AddProductRoute>()
     AddProductRouteScreen(
       initialMode = args.initialMode,
+      initialUrl = args.initialUrl,
       onNavigateBack = onNavigateBack,
       onProductSaved = onProductSaved,
     )

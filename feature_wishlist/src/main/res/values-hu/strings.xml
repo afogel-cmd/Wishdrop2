@@ -20,4 +20,13 @@
     <string name="filter_all">Összes</string>
     <string name="filter_purchased">Megvásárolt</string>
     <string name="filter_archived">Archivált</string>
+    <string name="wishlist_select_multiple">Kijelölés</string>
+    <string name="wishlist_select_all">Összes kijelölése</string>
+    <string name="wishlist_deselect_all">Kijelölés megszüntetése</string>
+    <string name="wishlist_selected_count">%1$d kijelölve</string>
+    <string name="wishlist_delete_selected">Kijelöltek törlése</string>
+    <string name="wishlist_delete_selected_confirm_title">Kijelölt tételek törlése</string>
+    <string name="wishlist_delete_selected_confirm_msg">Biztosan véglegesen törölni szeretnéd a kijelölt %1$d kívánságot?</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_delete">Törlés</string>
 </resources>

@@ -32,7 +32,10 @@ data class WishlistRoute(
 
 @Serializable data class ProductDetailsRoute(val productId: String)
 
-@Serializable data class AddProductRoute(val initialMode: String = "URL")
+@Serializable data class AddProductRoute(
+  val initialMode: String = "URL",
+  val initialUrl: String? = null,
+)
 
 @Serializable data class SharedListDetailsRoute(val listId: String)
 
@@ -98,8 +101,8 @@ fun NavController.navigateToSharedList(listId: String) {
   navigate(SharedListDetailsRoute(listId)) { launchSingleTop = true }
 }
 
-fun NavController.navigateToAddProduct(mode: String = "URL") {
-  navigate(AddProductRoute(mode)) { launchSingleTop = true }
+fun NavController.navigateToAddProduct(mode: String = "URL", initialUrl: String? = null) {
+  navigate(AddProductRoute(initialMode = mode, initialUrl = initialUrl)) { launchSingleTop = true }
 }
 
 fun NavController.navigateToGiftAssistantFor(recipientId: String?) {

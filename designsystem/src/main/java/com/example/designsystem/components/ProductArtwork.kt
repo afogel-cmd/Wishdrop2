@@ -134,14 +134,20 @@ private fun StudioIllustrationBackdrop(imageKey: String, title: String) {
         .replace("ü", "u")
         .replace("ű", "u")
       when {
-        normalized.contains("szaritogep") || normalized.contains("mosogep") || normalized.contains("dryer") || normalized.contains("washer") || normalized.contains("bosch") || normalized.contains("hoszivattyus") -> "dryer"
-        normalized.contains("buds") || normalized.contains("fulhallgato") -> "pixel_buds"
-        normalized.contains("watch") || normalized.contains("okosora") -> "pixel_watch"
+        normalized.contains("szaritogep") || normalized.contains("mosogep") || normalized.contains("dryer") || normalized.contains("washer") || normalized.contains("bosch") || normalized.contains("hoszivattyus") || normalized.contains("huto") || normalized.contains("mosogatogep") -> "dryer"
+        normalized.contains("buds") || normalized.contains("fulhallgato") || normalized.contains("fejhallgato") || normalized.contains("audio") || normalized.contains("hangszoro") -> "pixel_buds"
+        normalized.contains("watch") || normalized.contains("okosora") || normalized.contains("ora") -> "pixel_watch"
         normalized.contains("bonsai") -> "lego_bonsai"
-        normalized.contains("orchid") -> "lego_orchid"
+        normalized.contains("orchid") || normalized.contains("lego") -> "lego_orchid"
         normalized.contains("nothing") -> "nothing_ear"
-        normalized.contains("coffee") || normalized.contains("kettle") || normalized.contains("kave") -> "coffee_kettle"
-        else -> imageKey
+        normalized.contains("coffee") || normalized.contains("kettle") || normalized.contains("kave") || normalized.contains("espresso") -> "coffee_kettle"
+        normalized.contains("iphone") || normalized.contains("telefon") || normalized.contains("phone") || normalized.contains("mobil") || normalized.contains("pixel") -> "pixel_stand"
+        normalized.contains("tv") || normalized.contains("televizio") || normalized.contains("monitor") || normalized.contains("laptop") || normalized.contains("macbook") || normalized.contains("tablet") || normalized.contains("ipad") || normalized.contains("playstation") || normalized.contains("ps5") || normalized.contains("xbox") -> "tech_accessory"
+        normalized.contains("cap") || normalized.contains("wool") || normalized.contains("ruha") || normalized.contains("nadrag") || normalized.contains("ing") || normalized.contains("cipo") -> "wool_cap"
+        normalized.contains("book") || normalized.contains("konyv") -> "art_book"
+        normalized.contains("porszivo") || normalized.contains("vacuum") || normalized.contains("dyson") -> "dryer"
+        normalized.contains("kamera") || normalized.contains("camera") -> "camera_instant"
+        else -> if (imageKey.startsWith("http")) "tech_accessory" else imageKey
       }
     } else {
       imageKey

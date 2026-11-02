@@ -29,10 +29,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -145,6 +149,7 @@ fun WishlistRouteScreen(
     onSwipePurchased = viewModel::markPurchasedBySwipe,
     onSwipeArchive = viewModel::markArchivedBySwipe,
     onDeleteProduct = viewModel::deleteProduct,
+    onDeleteProducts = viewModel::deleteProducts,
     onUnarchiveProduct = viewModel::unarchiveProduct,
     onOpenAddProduct = onOpenAddProduct,
     onAssignSharedList = viewModel::assignProductToSharedList,
@@ -166,6 +171,7 @@ fun WishlistScreen(
   onSwipeArchive: (Product) -> Unit,
   onOpenAddProduct: (String) -> Unit,
   onDeleteProduct: (String) -> Unit = {},
+  onDeleteProducts: (List<String>) -> Unit = {},
   onUnarchiveProduct: (String) -> Unit = {},
   onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
@@ -217,6 +223,7 @@ fun WishlistScreen(
           onSwipePurchased = onSwipePurchased,
           onSwipeArchive = onSwipeArchive,
           onDeleteProduct = onDeleteProduct,
+          onDeleteProducts = onDeleteProducts,
           onUnarchiveProduct = onUnarchiveProduct,
           onAssignSharedList = onAssignSharedList,
           modifier = Modifier.padding(innerPadding),
@@ -238,12 +245,33 @@ private fun WishlistLoadedContent(
   onSwipePurchased: (Product) -> Unit,
   onSwipeArchive: (Product) -> Unit,
   onDeleteProduct: (String) -> Unit = {},
+  onDeleteProducts: (List<String>) -> Unit = {},
   onUnarchiveProduct: (String) -> Unit = {},
   onAssignSharedList: (productId: String, sharedListId: String?) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier,
 ) {
   val focusRequester = remember { FocusRequester() }
   val spacing = WishDropDesign.spacing
+
+  var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+  var selectedProductIds by rememberSaveable { mutableStateOf(setOf<String>()) }
+  var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
+  // Ha a termékek listája változik, távolítsuk el az esetlegesen már nem létező azonosítókat
+  val currentFilteredIds = remember(state.filteredProducts) {
+    state.filteredProducts.map { it.id }.toSet()
+  }
+  LaunchedEffect(currentFilteredIds) {
+    if (isSelectionMode) {
+      val validSelected = selectedProductIds.filter { it in currentFilteredIds }.toSet()
+      if (validSelected != selectedProductIds) {
+        selectedProductIds = validSelected
+      }
+      if (validSelected.isEmpty() && state.filteredProducts.isEmpty()) {
+        isSelectionMode = false
+      }
+    }
+  }
 
   LaunchedEffect(focusSearch) {
     if (focusSearch) {
@@ -260,10 +288,114 @@ private fun WishlistLoadedContent(
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
       ) {
-        Text(
-          text = stringResource(R.string.wishlist_title),
-          style = MaterialTheme.typography.headlineLarge,
-        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Text(
+            text = stringResource(R.string.wishlist_title),
+            style = MaterialTheme.typography.headlineLarge,
+          )
+
+          if (state.filteredProducts.isNotEmpty()) {
+            FilledTonalButton(
+              onClick = {
+                if (isSelectionMode) {
+                  isSelectionMode = false
+                  selectedProductIds = emptySet()
+                } else {
+                  isSelectionMode = true
+                }
+              },
+              contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+              Icon(
+                imageVector = if (isSelectionMode) WishDropIcons.Clear else WishDropIcons.Check,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = if (isSelectionMode) stringResource(R.string.action_cancel) else stringResource(R.string.wishlist_select_multiple),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+              )
+            }
+          }
+        }
+
+        AnimatedVisibility(
+          visible = isSelectionMode,
+          enter = expandVertically() + fadeIn(),
+          exit = shrinkVertically() + fadeOut(),
+        ) {
+          Surface(
+            shape = WishDropDesign.radii.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+              Text(
+                text = stringResource(R.string.wishlist_selected_count, selectedProductIds.size),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+              )
+
+              Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                TextButton(
+                  onClick = {
+                    if (selectedProductIds.size == state.filteredProducts.size) {
+                      selectedProductIds = emptySet()
+                    } else {
+                      selectedProductIds = state.filteredProducts.map { it.id }.toSet()
+                    }
+                  },
+                ) {
+                  Text(
+                    text = if (selectedProductIds.size == state.filteredProducts.size) {
+                      stringResource(R.string.wishlist_deselect_all)
+                    } else {
+                      stringResource(R.string.wishlist_select_all)
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                  )
+                }
+
+                FilledTonalButton(
+                  onClick = {
+                    if (selectedProductIds.isNotEmpty()) {
+                      showBatchDeleteDialog = true
+                    }
+                  },
+                  enabled = selectedProductIds.isNotEmpty(),
+                  colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                  ),
+                ) {
+                  Icon(
+                    imageVector = WishDropIcons.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                  )
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = stringResource(R.string.action_delete),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                  )
+                }
+              }
+            }
+          }
+        }
+
         OutlinedTextField(
           value = state.searchQuery,
           onValueChange = onSearchChanged,
@@ -347,7 +479,9 @@ private fun WishlistLoadedContent(
 
         item(key = "items_header", contentType = "section_header") {
           val swipeHint =
-            if (state.selectedFilter == "Archived") {
+            if (isSelectionMode) {
+              "Koppints a kívánságokra a kijelölésükhöz"
+            } else if (state.selectedFilter == "Archived") {
               "Húzd balra a törléshez • Jobbra a visszaállításhoz • vagy használd a ︙ menüt"
             } else {
               stringResource(R.string.wishlist_swipe_hint)
@@ -377,7 +511,26 @@ private fun WishlistLoadedContent(
             SwipeableWishlistProductItem(
               product = product,
               sharedLists = state.sharedLists,
-              onClick = { onOpenProductDetails(product.id) },
+              isSelectionMode = isSelectionMode,
+              isSelected = product.id in selectedProductIds,
+              onToggleSelection = {
+                selectedProductIds = if (product.id in selectedProductIds) {
+                  selectedProductIds - product.id
+                } else {
+                  selectedProductIds + product.id
+                }
+              },
+              onClick = {
+                if (isSelectionMode) {
+                  selectedProductIds = if (product.id in selectedProductIds) {
+                    selectedProductIds - product.id
+                  } else {
+                    selectedProductIds + product.id
+                  }
+                } else {
+                  onOpenProductDetails(product.id)
+                }
+              },
               onSwipePurchased = { onSwipePurchased(product) },
               onSwipeArchive = { onSwipeArchive(product) },
               onDeleteProduct = { onDeleteProduct(product.id) },
@@ -388,6 +541,36 @@ private fun WishlistLoadedContent(
         }
       }
     }
+  }
+
+  if (showBatchDeleteDialog) {
+    AlertDialog(
+      onDismissRequest = { showBatchDeleteDialog = false },
+      title = { Text(stringResource(R.string.wishlist_delete_selected_confirm_title)) },
+      text = {
+        Text(stringResource(R.string.wishlist_delete_selected_confirm_msg, selectedProductIds.size))
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            onDeleteProducts(selectedProductIds.toList())
+            selectedProductIds = emptySet()
+            isSelectionMode = false
+            showBatchDeleteDialog = false
+          },
+          colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.error,
+          ),
+        ) {
+          Text(stringResource(R.string.action_delete), fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showBatchDeleteDialog = false }) {
+          Text(stringResource(R.string.action_cancel))
+        }
+      },
+    )
   }
 }
 
@@ -457,6 +640,9 @@ private fun SmartCollectionCard(
 private fun SwipeableWishlistProductItem(
   product: Product,
   sharedLists: List<SharedListSummary>,
+  isSelectionMode: Boolean = false,
+  isSelected: Boolean = false,
+  onToggleSelection: () -> Unit = {},
   onClick: () -> Unit,
   onSwipePurchased: () -> Unit,
   onSwipeArchive: () -> Unit,
@@ -566,6 +752,11 @@ private fun SwipeableWishlistProductItem(
     PixelBentoCard(
       onClick = onClick,
       shape = WishDropDesign.radii.large,
+      containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+      } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
+      },
       modifier =
         Modifier.fillMaxWidth()
           .semantics {
@@ -588,6 +779,16 @@ private fun SwipeableWishlistProductItem(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
+        if (isSelectionMode) {
+          Checkbox(
+            checked = isSelected,
+            onCheckedChange = { onToggleSelection() },
+            colors = CheckboxDefaults.colors(
+              checkedColor = MaterialTheme.colorScheme.primary,
+            ),
+            modifier = Modifier.size(24.dp).testTag("wishlist_item_checkbox_${product.id}"),
+          )
+        }
         WishProductArtwork(
           imageKey = product.imageKey,
           productTitle = product.title,

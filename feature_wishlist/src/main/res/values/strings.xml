@@ -19,4 +19,13 @@
     <string name="filter_all">All</string>
     <string name="filter_purchased">Purchased</string>
     <string name="filter_archived">Archived</string>
+    <string name="wishlist_select_multiple">Select</string>
+    <string name="wishlist_select_all">Select All</string>
+    <string name="wishlist_deselect_all">Deselect All</string>
+    <string name="wishlist_selected_count">%1$d selected</string>
+    <string name="wishlist_delete_selected">Delete Selected</string>
+    <string name="wishlist_delete_selected_confirm_title">Delete Selected Items?</string>
+    <string name="wishlist_delete_selected_confirm_msg">Are you sure you want to permanently delete the %1$d selected items?</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
 </resources>

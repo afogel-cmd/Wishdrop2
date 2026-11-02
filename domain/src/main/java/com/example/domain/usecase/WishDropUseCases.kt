@@ -124,6 +124,9 @@ constructor(
   suspend fun deleteProduct(productId: String) =
     productRepository.deleteProduct(productId)
 
+  suspend fun deleteProducts(productIds: List<String>) =
+    productRepository.deleteProducts(productIds)
+
   suspend fun togglePriceAlert(productId: String) =
     productRepository.togglePriceAlert(productId)
 

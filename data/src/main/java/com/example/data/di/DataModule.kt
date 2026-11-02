@@ -46,6 +46,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpRedirect
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.serialization.kotlinx.json.json
@@ -92,6 +94,15 @@ object DatabaseModule {
   @Singleton
   fun provideKtorHttpClient(): HttpClient =
     HttpClient(CIO) {
+      install(HttpRedirect) {
+        checkHttpMethod = false
+        allowHttpsDowngrade = false
+      }
+      install(HttpTimeout) {
+        requestTimeoutMillis = 15_000
+        connectTimeoutMillis = 10_000
+        socketTimeoutMillis = 15_000
+      }
       install(ContentNegotiation) {
         json(
           Json {

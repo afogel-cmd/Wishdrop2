@@ -45,6 +45,8 @@ interface ProductRepository {
 
   suspend fun deleteProduct(productId: String)
 
+  suspend fun deleteProducts(productIds: List<String>)
+
   suspend fun togglePriceAlert(productId: String)
 
   suspend fun assignRecipient(productId: String, recipientId: String?, confidence: Int = 100)

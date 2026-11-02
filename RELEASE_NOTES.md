@@ -1,20 +1,24 @@
-# WishDrop v1.0.1 Kiadási Megjegyzések (Release Notes)
+# WishDrop v1.0.2 Kiadási Megjegyzések (Release Notes)
 
 ### 🚀 Újdonságok és Fejlesztések (What's New)
-- **Automatikus alkalmazásfrissítés-kezelő (In-App Updater):**
-  - Az alkalmazás induláskor automatikusan ellenőrzi a legújabb elérhető verziót a GitHub Releases-ből.
-  - Új verzió esetén letisztult dialógusablakban jeleníti meg a kiadási megjegyzéseket (release notes), és közvetlenül az alkalmazásból letölthető és telepíthető a frissítés.
-  - A Profil képernyőn a verzióinformációk mellett manuális "Frissítések keresése" lehetőség.
-- **Közös listameghívások elutasítása (Decline Invitations):**
-  - A beérkező családi kívánságlista meghívásokat mostantól nemcsak elfogadni lehet, hanem elutasítani is, mindezt külön elutasítási gombbal és letisztultabb UI elrendezéssel.
-- **Google fiók integráció és profilkép behúzás:**
-  - Egységesített Google bejelentkezési kártya a Profil felületen.
-  - Automatikus profilkép betöltés Google fiókból vagy Gravatar / felhő alapú feloldással.
-- **Megbízható helyi és felhő avatar-kezelés:**
-  - A galériából választott profilképek mostantól biztonságosan az alkalmazás belső, privát tárhelyére kerülnek mentésre, így az Android Photo Picker jogosultságainak lejárta vagy appfrissítés után sem vesznek el a képek.
-  - Felhőszinkronizáció javítása: a lokálisan beállított profilkép nem íródik felül üres értékkel a felhő szinkronizálásakor.
+- **Kívánságlista tömeges kijelölése és törlése (Batch Wishlist Deletion):**
+  - Mostantól egyszerre több tételt is ki lehet jelölni és törölni a kívánságlistából.
+  - Dedikált kijelölési mód lebegő műveleti sávval (floating action bar), kijelölt elemek számlálójával, "Mind kijelölése" / "Kijelölés törlése" lehetőséggel és megerősítő párbeszédpanellel.
+- **Teljeskörű MediaMarkt link támogatás telefonon is (MediaMarkt Link Extraction):**
+  - Intelligens mobil-böngésző fejléc- és átirányításkezelés, amely megbízhatóan átviszi a kéréseket és megkerüli az agresszív anti-bot blokkolásokat.
+  - Pontos cím, ár (HUF), kategóriák és nagyfelbontású hivatalos CDN termékképek (`assets.mmsrg.com`) automatikus betöltése a beágyazott JSON-LD és GraphQL adatokból.
+  - Zökkenőmentes magyar ékezetes karakter- és slug-feloldás (`ő`, `ű`, `á`, `é`, `í`, `ó`).
+- **Közvetlen Android Megosztás (Share to WishDrop):**
+  - A rendszer megosztási menüjéből (`ACTION_SEND`) közvetlenül megnyitható a WishDrop: böngészőből (pl. Chrome) vagy más appokból megosztott terméklinkek azonnal a hozzáadási képernyőre kerülnek, és elindul az automatikus AI elemzés.
+- **Kifinomultabb vizuális illusztrációk és tartalékok (Fallback Artworks):**
+  - Ha egy külső bolt képe nem elérhető vagy hálózati hiba lép fel, az intelligens illusztrációs rendszer automatikusan a terméktípusnak megfelelő (pl. telefon, TV, audio, háztartási gép, ruha, konzol) dizájnt jelenít meg a generikus ikon helyett.
 
-### 🐛 Hibajavítások és Stabilitás (Bug Fixes)
-- Kijavítva a profilképek betöltési hibája (permission denial) és monogramra való visszaesése.
-- Kijavítva az új érdeklődési körök megjelenítése a profilszerkesztőben és családtagok kártyáin.
-- Tisztított, letisztult fiókstátusz a Profil képernyőn.
+---
+
+# WishDrop v1.0.1 Kiadási Megjegyzések (Release Notes)
+
+### 🚀 Korábbi fejlesztések (Previous Highlights in v1.0.1)
+- Automatikus alkalmazásfrissítés-kezelő (In-App Updater GitHub Releases integrációval).
+- Közös listameghívások elutasításának lehetősége.
+- Google fiók profilkép szinkronizáció és megbízható helyi/felhő avatar-kezelés.
+- Érdeklődési körök mentésének és megjelenítésének javítása.

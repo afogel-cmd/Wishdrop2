@@ -248,6 +248,12 @@ constructor(
     }
   }
 
+  fun deleteProducts(productIds: List<String>) {
+    viewModelScope.launch {
+      manageWishlistItem.deleteProducts(productIds)
+    }
+  }
+
   fun undoSwipe(event: PendingSwipeEvent) {
     viewModelScope.launch {
       when (event.type) {

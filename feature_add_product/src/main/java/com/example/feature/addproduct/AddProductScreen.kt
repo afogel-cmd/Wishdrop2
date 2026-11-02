@@ -95,11 +95,19 @@ import com.example.domain.model.GiftRecipient
 @Composable
 fun AddProductRouteScreen(
   initialMode: String,
+  initialUrl: String? = null,
   onNavigateBack: () -> Unit,
   onProductSaved: (String) -> Unit,
   viewModel: AddProductViewModel = hiltViewModel(),
 ) {
-  LaunchedEffect(initialMode) { viewModel.setInitialMode(initialMode) }
+  LaunchedEffect(initialMode, initialUrl) {
+    viewModel.setInitialMode(initialMode)
+    if (!initialUrl.isNullOrBlank()) {
+      viewModel.selectMode(AddInputMode.URL)
+      viewModel.updateUrl(initialUrl)
+      viewModel.startExtraction()
+    }
+  }
   val state by viewModel.uiState.collectAsStateWithLifecycle()
 
   AddProductScreenContent(
